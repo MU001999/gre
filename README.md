@@ -1,3 +1,3 @@
-# gre
+# Gorgeous Regular Expression
 
 Gorgeous Regular Expression in C++, enables storing repeated sub-strings in vector or other containers

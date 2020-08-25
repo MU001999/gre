@@ -21,12 +21,37 @@ class State
     };
 
   public:
-    State(EdgeType edge_type)
+    explicit State(EdgeType edge_type)
       : edge_type_(edge_type)
       , next1_(nullptr)
       , next2_(nullptr)
     {
         // ...
+    }
+
+    std::bitset<256> &accept()
+    {
+        return accept_;
+    }
+
+    void set_next1(State *next)
+    {
+        next1_ = next;
+    }
+
+    void set_next2(State *next)
+    {
+        next2_ = next;
+    }
+
+    State *get_next1() const
+    {
+        return next1_;
+    }
+
+    State *get_next2() const
+    {
+        return next2_;
     }
 
   private:

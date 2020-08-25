@@ -1,33 +1,136 @@
 #pragma once
 
+#include <list>
 #include <string>
+#include <bitset>
+#include <memory>
+#include <type_traits>
 
 namespace gre
 {
 namespace details
 {
+class State
+{
+  public:
+    enum EdgeType
+    {
+        EPSILON,
+        CCL,
+        EMPTY,
+    };
 
+  public:
+    State(EdgeType edge_type)
+      : edge_type_(edge_type)
+      , next1_(nullptr)
+      , next2_(nullptr)
+    {
+        // ...
+    }
+
+  private:
+    EdgeType edge_type_;
+    std::bitset<256> accept_;
+    State *next1_;
+    State *next2_;
+};
+
+class Allocator
+{
+  public:
+    ~Allocator()
+    {
+        for (auto ptr : allocated_)
+        {
+            delete ptr;
+        }
+    }
+
+    template<typename ...Args>
+    State *allocate(Args &&...args)
+    {
+        auto ptr = new State(std::forward<Args>(args)...);
+        allocated_.push_back(ptr);
+        return ptr;
+    }
+
+  private:
+    std::list<State *> allocated_;
+};
+
+class Pair
+{
+  public:
+    Pair(Allocator &allocator)
+      : start(allocator.allocate())
+      , end(allocator.allocate())
+    {
+        // ...
+    }
+
+    Pair(State *start, State *end)
+      : start_(start), end_(end)
+    {
+        // ...
+    }
+
+    State *start() const
+    {
+        return start_;
+    }
+
+    State *end() const
+    {
+        return end_;
+    }
+
+  private:
+    State *start_;
+    State *end_;
+};
+
+class AST
+{
+  public:
+    AST(Allocator &allocator)
+      : allocator_(allocator)
+    {
+        // ...
+    }
+    virtual ~ASR() = default;
+
+    virtual Pair compile() = 0;
+
+  protected:
+    Allocator &allocator_;
+};
+
+class Parser
+{
+  public:
+    Parser(Allocator &allocator)
+      : allocator_(allocator)
+    {
+        // ...
+    }
+
+    std::unique_ptr<AST> parse(const std::string &pattern);
+
+  private:
+    Allocator &allocator_;
+};
 } // namespace details
 
 class Options
 {
   public:
     Options() = default;
-  private:
 };
 
 class GRE
 {
   public:
-    GRE(const std::string &pattern);
-    GRE(const std::string &pattern, const Options &Options);
-
-    const std::string &pattern() const;
-
-    template<typename ...Args>
-    static bool
-    match(const std::string &text, Args *...agrs);
-
     /**
      * ignored args should be nullptr
     */
@@ -39,6 +142,35 @@ class GRE
         return re.match(text, args...);
     }
 
+  public:
+    GRE(std::string pattern)
+      : pattern_(std::move(pattern))
+    {
+        auto ast = details::Parser(allocator_).parse(pattern_);
+        entry_ = ast->compile().start;
+    }
+
+    /**
+     * @options: unused now
+    */
+    GRE(std::string pattern, const Options &options)
+      : pattern_(std::move(pattern))
+    {
+        auto ast = details::Parser(allocator_).parse(pattern_);
+        entry_ = ast->compile().start;
+    }
+
+    const std::string &pattern() const
+    {
+        return pattern_;
+    }
+
+    template<typename ...Args>
+    bool match(const std::string &text, Args *...agrs);
+
   private:
+    std::string pattern_;
+    details::Allocator allocator_;
+    details::State *entry_;
 };
 } // namespace gre;

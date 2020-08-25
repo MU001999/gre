@@ -4,6 +4,7 @@
 #include <string>
 #include <bitset>
 #include <memory>
+#include <optional>
 #include <type_traits>
 
 namespace gre
@@ -153,18 +154,44 @@ class Options
     Options() = default;
 };
 
+/**
+ * "((pattern)*)"
+ *  will generate Group{Group{}, ...}
+*/
+class Group
+{
+  public:
+    Group() = default;
+
+    const std::string &name() const
+    {
+        return name_;
+    }
+
+    const std::string &self() const
+    {
+        return self_;
+    }
+
+    const std::vector<Group> &subs() const
+    {
+        return subs_;
+    }
+
+  private:
+    std::string name_;
+    std::string self_;
+    std::vector<Group> subs_;
+};
+
 class GRE
 {
   public:
-    /**
-     * ignored args should be nullptr
-    */
-    template<typename ...Args>
-    static bool
-    full_match(const std::string &text,
-        const GRE &re, Args *...args)
+    static std::optional<Group>
+    full_match(const GRE &re,
+        const std::string &text)
     {
-        return re.match(text, args...);
+        return re.match(text);
     }
 
   public:
@@ -190,8 +217,8 @@ class GRE
         return pattern_;
     }
 
-    template<typename ...Args>
-    bool match(const std::string &text, Args *...agrs);
+    std::optional<Group>
+    match(const std::string &text);
 
   private:
     std::string pattern_;

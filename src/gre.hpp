@@ -26,8 +26,18 @@ class GRE
 
     template<typename ...Args>
     static bool
+    match(const std::string &text, Args *...agrs);
+
+    /**
+     * ignored args should be nullptr
+    */
+    template<typename ...Args>
+    static bool
     full_match(const std::string &text,
-        const GRE &re, Args &...args);
+        const GRE &re, Args *...args)
+    {
+        return re.match(text, args...);
+    }
 
   private:
 };

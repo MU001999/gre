@@ -4,6 +4,7 @@
 #include <string>
 #include <bitset>
 #include <memory>
+#include <vector>
 #include <optional>
 #include <type_traits>
 
@@ -89,8 +90,8 @@ class Pair
 {
   public:
     Pair(Allocator &allocator)
-      : start(allocator.allocate())
-      , end(allocator.allocate())
+      : start_(allocator.allocate())
+      , end_(allocator.allocate())
     {
         // ...
     }
@@ -124,7 +125,7 @@ class AST
     {
         // ...
     }
-    virtual ~ASR() = default;
+    virtual ~AST() = default;
 
     virtual Pair compile() = 0;
 
@@ -199,7 +200,7 @@ class GRE
       : pattern_(std::move(pattern))
     {
         auto ast = details::Parser(allocator_).parse(pattern_);
-        entry_ = ast->compile().start;
+        entry_ = ast->compile().start();
     }
 
     /**
@@ -209,7 +210,7 @@ class GRE
       : pattern_(std::move(pattern))
     {
         auto ast = details::Parser(allocator_).parse(pattern_);
-        entry_ = ast->compile().start;
+        entry_ = ast->compile().start();
     }
 
     const std::string &pattern() const
@@ -218,7 +219,7 @@ class GRE
     }
 
     std::optional<Group>
-    match(const std::string &text);
+    match(const std::string &text) const;
 
   private:
     std::string pattern_;

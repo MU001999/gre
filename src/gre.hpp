@@ -162,7 +162,16 @@ class Options
 class Group
 {
   public:
-    Group() = default;
+    Group(std::string name)
+      : name_(std::move(name))
+    {
+        // ...
+    }
+
+    void set_self(std::string self)
+    {
+        self_.swap(self);
+    }
 
     const std::string &name() const
     {

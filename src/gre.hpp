@@ -5,6 +5,7 @@
 #include <bitset>
 #include <memory>
 #include <vector>
+#include <cstdint>
 #include <optional>
 #include <type_traits>
 
@@ -117,9 +118,8 @@ class Pair
     State *end_;
 };
 
-class AST
+struct AST
 {
-  public:
     AST(Allocator &allocator)
       : allocator_(allocator)
     {
@@ -133,19 +133,108 @@ class AST
     Allocator &allocator_;
 };
 
-class Parser
+struct SingleChar : AST
 {
-  public:
-    Parser(Allocator &allocator)
-      : allocator_(allocator)
+    char chr;
+
+    SingleChar(Allocator &allocator, char chr)
+      : AST(allocator), chr(chr)
     {
         // ...
     }
+};
 
-    std::unique_ptr<AST> parse(const std::string &pattern);
+struct Token
+{
+    enum Type
+    {
+        Normal,
+        Digit,
+
+        Or,     // |
+
+        End,
+    };
+
+    Type type;
+    char value;
+
+    Token() = default;
+};
+
+class Parser
+{
+  public:
+    Parser(Allocator &allocator,
+        const std::string &pattern)
+      : allocator_(allocator)
+      , pattern_(pattern), ind_(0)
+    {
+        get_next_token();
+    }
+
+    std::unique_ptr<AST> parse()
+    {
+
+    }
+
+  private:
+    Token &token(Token::Type type)
+    {
+        cur_tok_.type = type;
+        return cur_tok_;
+    }
+    Token &token(Token::Type type, char value)
+    {
+        cur_tok_.type = type;
+        cur_tok_.value = value;
+        return cur_tok_;
+    }
+
+    Token &get_next_token()
+    {
+        if (ind_ >= pattern_.size())
+        {
+            return token(Token::End);
+        }
+
+        auto chr = pattern_[ind_++];
+        switch (chr)
+        {
+        case '|':
+            return token(Token::Or);
+
+        case '\\':
+        {
+            auto chr = pattern_[ind_++];
+            switch (chr)
+            {
+            case 'd':
+                return token(Token::Digit);
+
+            default:
+                return token(Token::Normal, chr);
+            }
+        }
+
+        default:
+            return token(Token::Normal, chr);
+        }
+    }
+
+    std::unique_ptr<AST>
+    gen_single_char()
+    {
+        auto sc = std::make_unique<SingleChar>(allocator_, cur_tok_.value);
+        get_next_token();
+        return sc;
+    }
 
   private:
     Allocator &allocator_;
+    const std::string &pattern_;
+    std::size_t ind_;
+    Token cur_tok_;
 };
 } // namespace details
 
@@ -208,7 +297,7 @@ class GRE
     GRE(std::string pattern)
       : pattern_(std::move(pattern))
     {
-        auto ast = details::Parser(allocator_).parse(pattern_);
+        auto ast = details::Parser(allocator_, pattern_).parse();
         entry_ = ast->compile().start();
     }
 
@@ -218,7 +307,7 @@ class GRE
     GRE(std::string pattern, const Options &options)
       : pattern_(std::move(pattern))
     {
-        auto ast = details::Parser(allocator_).parse(pattern_);
+        auto ast = details::Parser(allocator_, pattern_).parse();
         entry_ = ast->compile().start();
     }
 

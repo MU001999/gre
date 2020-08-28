@@ -155,7 +155,15 @@ struct CatExpr : AST
 
     Pair compile() override
     {
+        auto lhs = this->lhs->compile();
+        auto rhs = this->rhs->compile();
 
+        Pair res(lhs.start, rhs.end);
+
+        lhs.end->edge_type = State::EPSILON;
+        lhs.end->next1 = rhs.start;
+
+        return res;
     }
 };
 

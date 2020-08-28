@@ -139,29 +139,6 @@ struct SingleCharExpr : AST
     }
 };
 
-struct DotExpr : AST
-{
-    DotExpr(Allocator &allocator)
-      : AST(allocator)
-    {
-        // ...
-    }
-
-    Pair compile() override
-    {
-        Pair res(allocator_);
-
-        res.start->edge_type = State::CCL;
-        res.end->edge_type = State::EMPTY;
-        res.start->next1 = res.end;
-        // exclude '\n'
-        res.start->accept = 1024ULL;
-        res.start->accept.flip();
-
-        return res;
-    }
-};
-
 struct CatExpr : AST
 {
     std::unique_ptr<AST> lhs, rhs;
@@ -176,7 +153,10 @@ struct CatExpr : AST
         // ...
     }
 
-    Pair compile() override;
+    Pair compile() override
+    {
+
+    }
 };
 
 struct SelectExpr : AST
@@ -200,7 +180,7 @@ struct QualifierExpr : AST
 {
     enum Mode : int
     {
-        NTimes = -1,
+        NTimes        = -1,
         AtLeastNTimes = -2,
     };
 
@@ -231,7 +211,17 @@ struct RangeExpr : AST
         // ...
     }
 
-    Pair compile() override;
+    Pair compile() override
+    {
+        Pair res(allocator_);
+
+        res.start->edge_type = State::CCL;
+        res.end->edge_type = State::EMPTY;
+        res.start->next1 = res.end;
+        res.start->accept = accept;
+
+        return res;
+    }
 };
 
 struct SubExpr : AST
@@ -629,12 +619,7 @@ class Parser
         }
         get_next_token();
 
-        if (exclude)
-        {
-            accept.flip();
-        }
-
-        return std::make_unique<RangeExpr>(allocator_, accept);
+        return std::make_unique<RangeExpr>(allocator_, exclude ? accept.flip() : accept);
     }
 
     std::unique_ptr<AST>
@@ -651,7 +636,8 @@ class Parser
     gen_dot_expr()
     {
         get_next_token();
-        return std::make_unique<DotExpr>(allocator_);
+        std::bitset<256> accept(1024UL);
+        return std::make_unique<RangeExpr>(allocator_, accept.flip());
     }
 
     std::unique_ptr<AST>

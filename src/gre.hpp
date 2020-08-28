@@ -50,12 +50,25 @@ struct State
         EMPTY,
     };
 
+    // common data
     EdgeType edge_type;
     std::bitset<256> accept;
     State *next1;
     State *next2;
 
-    State() : edge_type(EMPTY), next1(nullptr), next2(nullptr) {}
+    // special for sub-expr
+    bool is_sub_expr;
+    std::size_t index;
+    std::string name;
+
+    State()
+      : edge_type(EMPTY)
+      , next1(nullptr)
+      , next2(nullptr)
+      , is_sub_expr(false)
+    {
+        // ...
+    }
 };
 
 class Allocator
@@ -265,7 +278,16 @@ struct SubExpr : AST
         // ...
     }
 
-    Pair compile() override;
+    Pair compile() override
+    {
+        auto res = expr->compile();
+
+        res.start->is_sub_expr = true;
+        res.start->index = index;
+        res.start->name = name;
+
+        return res;
+    }
 };
 
 struct Token

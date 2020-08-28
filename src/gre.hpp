@@ -41,9 +41,8 @@ inline const std::map<char, const std::bitset<256> &> thePredefMap
     { 'w', theWord_s }, { 'W', theNonWord_s },
 };
 
-class State
+struct State
 {
-  public:
     enum EdgeType
     {
         EPSILON,
@@ -51,45 +50,12 @@ class State
         EMPTY,
     };
 
-  public:
-    explicit State(EdgeType edge_type)
-      : edge_type_(edge_type)
-      , next1_(nullptr)
-      , next2_(nullptr)
-    {
-        // ...
-    }
+    EdgeType edge_type;
+    std::bitset<256> accept;
+    State *next1;
+    State *next2;
 
-    std::bitset<256> &accept()
-    {
-        return accept_;
-    }
-
-    void set_next1(State *next)
-    {
-        next1_ = next;
-    }
-
-    void set_next2(State *next)
-    {
-        next2_ = next;
-    }
-
-    State *get_next1() const
-    {
-        return next1_;
-    }
-
-    State *get_next2() const
-    {
-        return next2_;
-    }
-
-  private:
-    EdgeType edge_type_;
-    std::bitset<256> accept_;
-    State *next1_;
-    State *next2_;
+    State() : next1(nullptr), next2(nullptr) {}
 };
 
 class Allocator
@@ -115,35 +81,24 @@ class Allocator
     std::list<State *> allocated_;
 };
 
-class Pair
+struct Pair
 {
+    State *start;
+    State *end;
+
   public:
     Pair(Allocator &allocator)
-      : start_(allocator.allocate())
-      , end_(allocator.allocate())
+      : start(allocator.allocate())
+      , end(allocator.allocate())
     {
         // ...
     }
 
     Pair(State *start, State *end)
-      : start_(start), end_(end)
+      : start(start), end(end)
     {
         // ...
     }
-
-    State *start() const
-    {
-        return start_;
-    }
-
-    State *end() const
-    {
-        return end_;
-    }
-
-  private:
-    State *start_;
-    State *end_;
 };
 
 struct AST
@@ -171,7 +126,17 @@ struct SingleCharExpr : AST
         // ...
     }
 
-    Pair compile() override;
+    Pair compile() override
+    {
+        Pair res(allocator_);
+
+        res.start->edge_type = State::CCL;
+        res.end->edge_type = State::EMPTY;
+        res.start->next1 = res.end;
+        res.start->accept.set(chr);
+
+        return res;
+    }
 };
 
 struct DotExpr : AST
@@ -182,7 +147,10 @@ struct DotExpr : AST
         // ...
     }
 
-    Pair compile() override;
+    Pair compile() override
+    {
+
+    }
 };
 
 struct PredefExpr : AST
@@ -769,7 +737,7 @@ class GRE
       : pattern_(std::move(pattern))
     {
         auto ast = details::Parser(allocator_, pattern_).parse();
-        entry_ = ast->compile().start();
+        entry_ = ast->compile().start;
     }
 
     /**
@@ -779,7 +747,7 @@ class GRE
       : pattern_(std::move(pattern))
     {
         auto ast = details::Parser(allocator_, pattern_).parse();
-        entry_ = ast->compile().start();
+        entry_ = ast->compile().start;
     }
 
     const std::string &pattern() const

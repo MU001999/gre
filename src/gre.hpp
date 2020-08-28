@@ -55,7 +55,7 @@ struct State
     State *next1;
     State *next2;
 
-    State() : next1(nullptr), next2(nullptr) {}
+    State() : edge_type(EMPTY), next1(nullptr), next2(nullptr) {}
 };
 
 class Allocator
@@ -131,7 +131,6 @@ struct SingleCharExpr : AST
         Pair res(allocator_);
 
         res.start->edge_type = State::CCL;
-        res.end->edge_type = State::EMPTY;
         res.start->next1 = res.end;
         res.start->accept.set(chr);
 
@@ -181,7 +180,24 @@ struct SelectExpr : AST
         // ...
     }
 
-    Pair compile() override;
+    Pair compile() override
+    {
+        auto lhs = this->lhs->compile();
+        auto rhs = this->rhs->compile();
+
+        Pair res(allocator_);
+
+        res.start->edge_type = State::EPSILON;
+        res.start->next1 = lhs.start;
+        res.start->next2 = rhs.start;
+
+        lhs.end->edge_type = State::EPSILON;
+        lhs.end->next1 = res.end;
+        rhs.end->edge_type = State::EPSILON;
+        rhs.end->next1 = res.end;
+
+        return res;
+    }
 };
 
 struct QualifierExpr : AST
@@ -224,7 +240,6 @@ struct RangeExpr : AST
         Pair res(allocator_);
 
         res.start->edge_type = State::CCL;
-        res.end->edge_type = State::EMPTY;
         res.start->next1 = res.end;
         res.start->accept = accept;
 

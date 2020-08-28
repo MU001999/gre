@@ -14,24 +14,31 @@ namespace gre
 {
 namespace details
 {
-inline const std::bitset<256> SPACES(0X100003e00ULL);
-inline const std::bitset<256> DIGITS(287948901175001088ULL);
-inline const std::bitset<256> LWORDS("111111111111111111111111110000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000");
-inline const std::bitset<256> UWORDS("1111111111111111111111111100000000000000000000000000000000000000000000000000000000000000000");
-inline const std::bitset<256> WORD_S("111111111111111111111111110100001111111111111111111111111100000001111111111000000000000000000000000000000000000000000000000");
-inline const std::bitset<256> NON_SPACES = ~SPACES;
-inline const std::bitset<256> NON_DIGITS = ~DIGITS;
-inline const std::bitset<256> NON_LWORDS = ~LWORDS;
-inline const std::bitset<256> NON_UWORDS = ~UWORDS;
-inline const std::bitset<256> NON_WORD_S = ~WORD_S;
+// ---------------------------------------*************************\******************\\\\\*********-----
+// ---------------------------------------************************* ******************rfvnt*********-----
+inline const std::bitset<256> theSpaces(0b0000000000000000000000000100000000000000000011111000000000ULL);
+// ---------------------------------------9876543210                                                -----
+inline const std::bitset<256> theDigits(0b1111111111000000000000000000000000000000000000000000000000ULL);
+// --------------------------------------zyxwvutsrqponmlkjihgfedcba                                                                                                 ---
+inline const std::bitset<256> theLWords("111111111111111111111111110000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000");
+// --------------------------------------                                ZYXWVUTSRQPONMLKJIHGFEDCBA                                                                 ---
+inline const std::bitset<256> theUWords("000000000000000000000000000000001111111111111111111111111100000000000000000000000000000000000000000000000000000000000000000");
+// --------------------------------------zyxwvutsrqponmlkjihgfedcba _    ZYXWVUTSRQPONMLKJIHGFEDCBA       9876543210                                                ---
+inline const std::bitset<256> theWord_s("111111111111111111111111110100001111111111111111111111111100000001111111111000000000000000000000000000000000000000000000000");
 
-inline const std::map<char, std::bitset<256>> ECMAP
+inline const std::bitset<256> theNonSpaces = ~theSpaces;
+inline const std::bitset<256> theNonDigits = ~theDigits;
+inline const std::bitset<256> theNonLWords = ~theLWords;
+inline const std::bitset<256> theNonUWords = ~theUWords;
+inline const std::bitset<256> theNonWord_s = ~theWord_s;
+
+inline const std::map<char, const std::bitset<256> &> thePredefMap
 {
-    {'s', SPACES}, {'S', NON_SPACES},
-    {'d', DIGITS}, {'D', NON_DIGITS},
-    {'l', LWORDS}, {'L', NON_LWORDS},
-    {'u', UWORDS}, {'U', NON_UWORDS},
-    {'w', WORD_S}, {'W', NON_WORD_S}
+    { 's', theSpaces }, { 'S', theNonSpaces },
+    { 'd', theDigits }, { 'D', theNonDigits },
+    { 'l', theLWords }, { 'L', theNonLWords },
+    { 'u', theUWords }, { 'U', theNonUWords },
+    { 'w', theWord_s }, { 'W', theNonWord_s },
 };
 
 class State
@@ -618,7 +625,7 @@ class Parser
             // meet \s ...
             if (cur_tok_.type == Token::Predef)
             {
-                accept |= ECMAP.at(cur_tok_.value);
+                accept |= thePredefMap.at(cur_tok_.value);
                 get_next_token();
                 continue;
             }
@@ -646,14 +653,14 @@ class Parser
                 auto end = cur_tok_.value;
                 for (; start <= end; ++start)
                 {
-                    accept.set(start, true);
+                    accept.set(start);
                 }
 
                 get_next_token();
             }
             else
             {
-                accept.set(start, true);
+                accept.set(start);
             }
         }
         get_next_token();

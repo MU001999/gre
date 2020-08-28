@@ -149,21 +149,17 @@ struct DotExpr : AST
 
     Pair compile() override
     {
+        Pair res(allocator_);
 
+        res.start->edge_type = State::CCL;
+        res.end->edge_type = State::EMPTY;
+        res.start->next1 = res.end;
+        // exclude '\n'
+        res.start->accept = 1024ULL;
+        res.start->accept.flip();
+
+        return res;
     }
-};
-
-struct PredefExpr : AST
-{
-    char sym;
-
-    PredefExpr(Allocator &allocator, char sym)
-      : AST(allocator), sym(sym)
-    {
-        // ...
-    }
-
-    Pair compile() override;
 };
 
 struct CatExpr : AST
@@ -661,8 +657,8 @@ class Parser
     std::unique_ptr<AST>
     gen_predef_expr()
     {
-        auto expr = std::make_unique<PredefExpr>(
-            allocator_, cur_tok_.value
+        auto expr = std::make_unique<RangeExpr>(
+            allocator_, thePredefMap.at(cur_tok_.value)
         );
         get_next_token();
         return expr;

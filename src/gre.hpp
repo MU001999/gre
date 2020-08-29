@@ -6,6 +6,8 @@
 #include <bitset>
 #include <memory>
 #include <vector>
+#include <cctype>
+#include <utility>
 #include <cstdint>
 #include <optional>
 #include <type_traits>
@@ -254,7 +256,56 @@ struct QualifierExpr : AST
             auto ast = expr;
             for (int i = 1; i < n; ++i)
             {
-                ast = temp_allocator.allocate<CatExpr>(allocator_, ast, expr);
+                ast = temp_allocator.allocate<CatExpr>(
+                    allocator_, ast, expr
+                );
+            }
+            return ast->compile();
+        }
+        // {n, }
+        else if (m == AtLeastNTimes)
+        {
+            if (n == 0)
+            {
+                auto expr = this->expr->compile();
+
+                Pair res(allocator_);
+
+                res.start->edge_type = State::EPSILON;
+                res.start->next1 = expr.start;
+                res.start->next2 = res.end;
+
+                expr.end->edge_type = State::EPSILON;
+                expr.end->next1 = expr.start;
+                expr.end->next2 = res.end;
+
+                return res;
+            }
+
+            // assert n > 0
+            Allocator<AST> temp_allocator;
+            return temp_allocator.allocate<CatExpr>(allocator_,
+                temp_allocator.allocate<QualifierExpr>(
+                    allocator_, expr, n, NTimes),
+                temp_allocator.allocate<QualifierExpr>(
+                    allocator_, expr, 0, AtLeastNTimes)
+            )->compile();
+        }
+        // {n, m}
+        else
+        {
+            // assert n < m and n >= 0
+            Allocator<AST> temp_allocator;
+            auto ast = temp_allocator.allocate<QualifierExpr>(
+                allocator_, expr, n, NTimes
+            );
+            for (int i = n + 1; i <= m; ++i)
+            {
+                ast = temp_allocator.allocate<SelectExpr>(
+                    allocator_, ast,
+                    temp_allocator.allocate<QualifierExpr>(
+                        allocator_, expr, i, NTimes)
+                );
             }
             return ast->compile();
         }
@@ -330,6 +381,8 @@ struct Token
         RParen,
         LBracket,
         RBracket,
+        LBrace,
+        RBrace,
 
         End,
     };
@@ -342,6 +395,11 @@ struct Token
     bool is_normal(char val)
     {
         return type == Normal && value == val;
+    }
+
+    bool is_digit()
+    {
+        return type == Normal && std::isdigit(value);
     }
 };
 
@@ -476,6 +534,78 @@ class Parser
         return lhs;
     }
 
+    std::pair<int, int> gen_qualifier()
+    {
+        // eat '{'
+        get_next_token();
+
+        int n, m;
+
+        if (cur_tok_.is_digit())
+        {
+            int n = cur_tok_.value - '0';
+            get_next_token();
+
+            while (cur_tok_.is_digit())
+            {
+                n = n * 10 + cur_tok_.value - '0';
+                get_next_token();
+            }
+
+            if (cur_tok_.is_normal(','))
+            {
+                // eat ','
+                get_next_token();
+
+                // {n,m}
+                if (cur_tok_.is_digit())
+                {
+                    m = cur_tok_.value - '0';
+                    get_next_token();
+
+                    while (cur_tok_.is_digit())
+                    {
+                        m = m * 10 + cur_tok_.value - '0';
+                        get_next_token();
+                    }
+
+                    if (cur_tok_.type != Token::RBrace)
+                    {
+                        throw;
+                    }
+
+                    // eat '}'
+                    get_next_token();
+                    return {n, m};
+                }
+                // {n,}
+                else if (cur_tok_.type == Token::RBrace)
+                {
+                    get_next_token();
+                    return {n, QualifierExpr::AtLeastNTimes};
+                }
+                else
+                {
+                    throw;
+                }
+            }
+            // {n}
+            else if (cur_tok_.type == Token::RBrace)
+            {
+                get_next_token();
+                return {n, QualifierExpr::NTimes};
+            }
+            else
+            {
+                throw;
+            }
+        }
+        else
+        {
+            throw;
+        }
+    }
+
     AST *gen_term()
     {
         AST *term;
@@ -531,6 +661,15 @@ class Parser
                     allocator_, term, 0, 1
                 );
                 get_next_token();
+                break;
+
+            case Token::LBrace:
+            {
+                auto qualifier = gen_qualifier();
+                term = allocator4ast_.allocate<QualifierExpr>(
+                    allocator_, term, qualifier.first, qualifier.second
+                );
+            }
                 break;
 
             default:
@@ -698,7 +837,9 @@ class Parser
     {
         get_next_token();
         std::bitset<256> accept(1024UL);
-        return allocator4ast_.allocate<RangeExpr>(allocator_, accept.flip());
+        return allocator4ast_.allocate<RangeExpr>(
+            allocator_, accept.flip()
+        );
     }
 
     AST *gen_predef_expr()

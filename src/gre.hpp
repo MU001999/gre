@@ -71,6 +71,7 @@ struct State
     }
 };
 
+template<typename T>
 class Allocator
 {
   public:
@@ -82,16 +83,25 @@ class Allocator
         }
     }
 
-    template<typename ...Args>
-    State *allocate(Args &&...args)
+    void deallocate()
     {
-        auto ptr = new State(std::forward<Args>(args)...);
+        for (auto ptr : allocated_)
+        {
+            delete ptr;
+        }
+        allocated_.clear();
+    }
+
+    template<typename R = T, typename ...Args>
+    T *allocate(Args &&...args)
+    {
+        auto ptr = new R(std::forward<Args>(args)...);
         allocated_.push_back(ptr);
         return ptr;
     }
 
   private:
-    std::list<State *> allocated_;
+    std::list<T *> allocated_;
 };
 
 struct Pair
@@ -100,7 +110,7 @@ struct Pair
     State *end;
 
   public:
-    Pair(Allocator &allocator)
+    Pair(Allocator<State> &allocator)
       : start(allocator.allocate())
       , end(allocator.allocate())
     {
@@ -116,7 +126,7 @@ struct Pair
 
 struct AST
 {
-    AST(Allocator &allocator)
+    AST(Allocator<State> &allocator)
       : allocator_(allocator)
     {
         // ...
@@ -126,14 +136,14 @@ struct AST
     virtual Pair compile() = 0;
 
   protected:
-    Allocator &allocator_;
+    Allocator<State> &allocator_;
 };
 
 struct SingleCharExpr : AST
 {
     char chr;
 
-    SingleCharExpr(Allocator &allocator, char chr)
+    SingleCharExpr(Allocator<State> &allocator, char chr)
       : AST(allocator), chr(chr)
     {
         // ...
@@ -153,14 +163,10 @@ struct SingleCharExpr : AST
 
 struct CatExpr : AST
 {
-    std::unique_ptr<AST> lhs, rhs;
+    AST *lhs, *rhs;
 
-    CatExpr(Allocator &allocator,
-        std::unique_ptr<AST> &&lhs,
-        std::unique_ptr<AST> &&rhs)
-      : AST(allocator)
-      , lhs(std::move(lhs))
-      , rhs(std::move(rhs))
+    CatExpr(Allocator<State> &allocator, AST *lhs, AST *rhs)
+      : AST(allocator), lhs(lhs), rhs(rhs)
     {
         // ...
     }
@@ -181,14 +187,10 @@ struct CatExpr : AST
 
 struct SelectExpr : AST
 {
-    std::unique_ptr<AST> lhs, rhs;
+    AST *lhs, *rhs;
 
-    SelectExpr(Allocator &allocator,
-        std::unique_ptr<AST> &&lhs,
-        std::unique_ptr<AST> &&rhs)
-      : AST(allocator)
-      , lhs(std::move(lhs))
-      , rhs(std::move(rhs))
+    SelectExpr(Allocator<State> &allocator, AST *lhs, AST *rhs)
+      : AST(allocator), lhs(lhs), rhs(rhs)
     {
         // ...
     }
@@ -221,27 +223,49 @@ struct QualifierExpr : AST
         AtLeastNTimes = -2,
     };
 
-    std::unique_ptr<AST> expr;
+    AST *expr;
     int n, m;
 
-    QualifierExpr(Allocator &allocator,
-        std::unique_ptr<AST> &&expr,
+    QualifierExpr(Allocator<State> &allocator, AST *expr,
         int n, int m = Mode::NTimes)
-      : AST(allocator)
-      , expr(std::move(expr))
-      , n(n), m(m)
+      : AST(allocator), expr(expr), n(n), m(m)
     {
         // ...
     }
 
-    Pair compile() override;
+    Pair compile() override
+    {
+        // {n}
+        if (m == NTimes)
+        {
+            // check of n < 0 is in parsing
+            if (n == 0)
+            {
+                Pair res(allocator_);
+
+                res.start->edge_type = State::EPSILON;
+                res.start->next1 = res.end;
+
+                return res;
+            }
+
+            // assert n > 0
+            Allocator<AST> temp_allocator;
+            auto ast = expr;
+            for (int i = 1; i < n; ++i)
+            {
+                ast = temp_allocator.allocate<CatExpr>(allocator_, ast, expr);
+            }
+            return ast->compile();
+        }
+    }
 };
 
 struct RangeExpr : AST
 {
     std::bitset<256> accept;
 
-    RangeExpr(Allocator &allocator,
+    RangeExpr(Allocator<State> &allocator,
         std::bitset<256> accept)
       : AST(allocator), accept(accept)
     {
@@ -264,16 +288,11 @@ struct SubExpr : AST
 {
     std::size_t index;
     std::string name;
-    std::unique_ptr<AST> expr;
+    AST *expr;
 
-    SubExpr(Allocator &allocator,
-        std::size_t index,
-        std::string name,
-        std::unique_ptr<AST> &&expr)
-      : AST(allocator)
-      , index(index)
-      , name(std::move(name))
-      , expr(std::move(expr))
+    SubExpr(Allocator<State> &allocator,
+        std::size_t index, std::string name, AST *expr)
+      : AST(allocator), index(index), name(std::move(name)), expr(expr)
     {
         // ...
     }
@@ -329,9 +348,11 @@ struct Token
 class Parser
 {
   public:
-    Parser(Allocator &allocator,
+    Parser(Allocator<State> &allocator,
+        Allocator<AST> &allocator4ast,
         const std::string &pattern)
       : allocator_(allocator)
+      , allocator4ast_(allocator4ast)
       , pattern_(pattern)
       , ind_of_pattern_(0)
       , ind_of_subexpr_(0)
@@ -339,7 +360,7 @@ class Parser
         get_next_token();
     }
 
-    std::unique_ptr<AST> parse()
+    AST *parse()
     {
         return gen_select_expr();
     }
@@ -418,8 +439,7 @@ class Parser
         }
     }
 
-    std::unique_ptr<AST>
-    gen_cat_expr()
+    AST *gen_cat_expr()
     {
         auto lhs = gen_term();
         /**
@@ -427,8 +447,8 @@ class Parser
         */
         while (auto rhs = gen_term())
         {
-            lhs = std::make_unique<CatExpr>(allocator_,
-                std::move(lhs), std::move(rhs)
+            lhs = allocator4ast_.allocate<CatExpr>(
+                allocator_, lhs, rhs
             );
         }
 
@@ -443,24 +463,22 @@ class Parser
         return lhs;
     }
 
-    std::unique_ptr<AST>
-    gen_select_expr()
+    AST *gen_select_expr()
     {
         auto lhs = gen_cat_expr();
         while (cur_tok_.type == Token::Or)
         {
             get_next_token();
-            lhs = std::make_unique<SelectExpr>(allocator_,
-                std::move(lhs), gen_cat_expr()
+            lhs = allocator4ast_.allocate<SelectExpr>(
+                allocator_, lhs, gen_cat_expr()
             );
         }
         return lhs;
     }
 
-    std::unique_ptr<AST>
-    gen_term()
+    AST *gen_term()
     {
-        std::unique_ptr<AST> term;
+        AST *term;
         switch (cur_tok_.type)
         {
         case Token::LParen:
@@ -493,24 +511,24 @@ class Parser
             switch (cur_tok_.type)
             {
             case Token::Star:
-                term = std::make_unique<QualifierExpr>(
-                    allocator_, move(term),
+                term = allocator4ast_.allocate<QualifierExpr>(
+                    allocator_, term,
                     0, QualifierExpr::AtLeastNTimes
                 );
                 get_next_token();
                 break;
 
             case Token::Plus:
-                term = std::make_unique<QualifierExpr>(
-                    allocator_, move(term),
+                term = allocator4ast_.allocate<QualifierExpr>(
+                    allocator_, term,
                     1, QualifierExpr::AtLeastNTimes
                 );
                 get_next_token();
                 break;
 
             case Token::Ques:
-                term = std::make_unique<QualifierExpr>(
-                    allocator_, move(term), 0, 1
+                term = allocator4ast_.allocate<QualifierExpr>(
+                    allocator_, term, 0, 1
                 );
                 get_next_token();
                 break;
@@ -523,14 +541,13 @@ class Parser
 
     }
 
-    std::unique_ptr<AST>
-    gen_sub_expr()
+    AST *gen_sub_expr()
     {
         // eat '('
         get_next_token();
         if (cur_tok_.type != Token::Ques)
         {
-            auto sub_expr = std::make_unique<SubExpr>(allocator_,
+            auto sub_expr = allocator4ast_.allocate<SubExpr>(allocator_,
                 ind_of_subexpr_, std::to_string(ind_of_subexpr_), gen_select_expr()
             );
             ++ind_of_subexpr_;
@@ -580,13 +597,13 @@ class Parser
             get_next_token();
             if (cur_tok_.type == Token::RParen)
             {
-                return std::make_unique<SubExpr>(allocator_,
+                return allocator4ast_.allocate<SubExpr>(allocator_,
                     ind_of_subexpr_++, std::move(name), nullptr
                 );
             }
             else
             {
-                return std::make_unique<SubExpr>(allocator_,
+                return allocator4ast_.allocate<SubExpr>(allocator_,
                     ind_of_subexpr_++, std::move(name), gen_select_expr()
                 );
             }
@@ -603,8 +620,7 @@ class Parser
      * in [...] no special characters
      *  except the first '^', '\' and '-'
     */
-    std::unique_ptr<AST>
-    gen_range_expr()
+    AST *gen_range_expr()
     {
         std::bitset<256> accept;
         bool exclude = false;
@@ -664,31 +680,30 @@ class Parser
         }
         get_next_token();
 
-        return std::make_unique<RangeExpr>(allocator_, exclude ? accept.flip() : accept);
+        return allocator4ast_.allocate<RangeExpr>(
+            allocator_, exclude ? accept.flip() : accept
+        );
     }
 
-    std::unique_ptr<AST>
-    gen_single_char_expr()
+    AST *gen_single_char_expr()
     {
-        auto expr = std::make_unique<SingleCharExpr>(
+        auto expr = allocator4ast_.allocate<SingleCharExpr>(
             allocator_, cur_tok_.value
         );
         get_next_token();
         return expr;
     }
 
-    std::unique_ptr<AST>
-    gen_dot_expr()
+    AST *gen_dot_expr()
     {
         get_next_token();
         std::bitset<256> accept(1024UL);
-        return std::make_unique<RangeExpr>(allocator_, accept.flip());
+        return allocator4ast_.allocate<RangeExpr>(allocator_, accept.flip());
     }
 
-    std::unique_ptr<AST>
-    gen_predef_expr()
+    AST *gen_predef_expr()
     {
-        auto expr = std::make_unique<RangeExpr>(
+        auto expr = allocator4ast_.allocate<RangeExpr>(
             allocator_, thePredefMap.at(cur_tok_.value)
         );
         get_next_token();
@@ -696,10 +711,13 @@ class Parser
     }
 
   private:
-    Allocator &allocator_;
+    Allocator<State> &allocator_;
+    Allocator<AST> &allocator4ast_;
+
     const std::string &pattern_;
     std::size_t ind_of_pattern_;
     Token cur_tok_;
+
     std::size_t ind_of_subexpr_;
 };
 } // namespace details
@@ -763,7 +781,8 @@ class GRE
     GRE(std::string pattern)
       : pattern_(std::move(pattern))
     {
-        auto ast = details::Parser(allocator_, pattern_).parse();
+        details::Allocator<details::AST> allocator4ast;
+        auto ast = details::Parser(allocator_, allocator4ast, pattern_).parse();
         entry_ = ast->compile().start;
     }
 
@@ -773,7 +792,8 @@ class GRE
     GRE(std::string pattern, const Options &options)
       : pattern_(std::move(pattern))
     {
-        auto ast = details::Parser(allocator_, pattern_).parse();
+        details::Allocator<details::AST> allocator4ast;
+        auto ast = details::Parser(allocator_, allocator4ast, pattern_).parse();
         entry_ = ast->compile().start;
     }
 
@@ -787,7 +807,7 @@ class GRE
 
   private:
     std::string pattern_;
-    details::Allocator allocator_;
+    details::Allocator<details::State> allocator_;
     details::State *entry_;
 };
 } // namespace gre;

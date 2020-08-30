@@ -915,6 +915,11 @@ class Group
         return subs_;
     }
 
+    Group &operator[](std::size_t i)
+    {
+        return subs_[i];
+    }
+
     std::vector<std::string>
     operator[](const std::string &name)
     {
@@ -983,14 +988,21 @@ class GRE
     std::optional<Group>
     match(const std::string &text) const
     {
-        std::set<details::Node *> visit{start_};
+        Group res(pattern_);
 
-        while (!visit.empty())
+        if (match_impl(text, 0, res))
         {
-
+            return res;
         }
 
         return std::optional<Group>();
+    }
+
+  private:
+    bool match_impl(const std::string &text,
+        std::size_t i, Group &group) const
+    {
+        return true;
     }
 
   private:

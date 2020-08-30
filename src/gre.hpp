@@ -43,31 +43,39 @@ inline const std::map<char, const std::bitset<256> &> thePredefMap
     { 'w', theWord_s }, { 'W', theNonWord_s },
 };
 
-struct State
+struct Node
 {
+    // for common data
     enum EdgeType
     {
-        EPSILON,
-        CCL,
-        EMPTY,
+        Epsilon,
+        CharSet,
+        Empty,
     };
 
-    // common data
     EdgeType edge_type;
     std::bitset<256> accept;
-    State *next1;
-    State *next2;
+    Node *next1;
+    // next2 will be not nullptr only when edge_type is Epsilon
+    Node *next2;
 
-    // special for sub-expr
-    bool is_sub_expr;
+    // for capture-expr
+    enum CaptureState
+    {
+        NoGo,
+        Begin,
+        End,
+    };
+
+    CaptureState state;
     std::size_t index;
     std::string name;
 
-    State()
-      : edge_type(EMPTY)
+    Node()
+      : edge_type(Empty)
       , next1(nullptr)
       , next2(nullptr)
-      , is_sub_expr(false)
+      , state(NoGo)
     {
         // ...
     }
@@ -108,18 +116,18 @@ class Allocator
 
 struct Pair
 {
-    State *start;
-    State *end;
+    Node *start;
+    Node *end;
 
   public:
-    Pair(Allocator<State> &allocator)
+    Pair(Allocator<Node> &allocator)
       : start(allocator.allocate())
       , end(allocator.allocate())
     {
         // ...
     }
 
-    Pair(State *start, State *end)
+    Pair(Node *start, Node *end)
       : start(start), end(end)
     {
         // ...
@@ -128,7 +136,7 @@ struct Pair
 
 struct AST
 {
-    AST(Allocator<State> &allocator)
+    AST(Allocator<Node> &allocator)
       : allocator_(allocator)
     {
         // ...
@@ -138,14 +146,14 @@ struct AST
     virtual Pair compile() = 0;
 
   protected:
-    Allocator<State> &allocator_;
+    Allocator<Node> &allocator_;
 };
 
 struct SingleCharExpr : AST
 {
     char chr;
 
-    SingleCharExpr(Allocator<State> &allocator, char chr)
+    SingleCharExpr(Allocator<Node> &allocator, char chr)
       : AST(allocator), chr(chr)
     {
         // ...
@@ -155,7 +163,7 @@ struct SingleCharExpr : AST
     {
         Pair res(allocator_);
 
-        res.start->edge_type = State::CCL;
+        res.start->edge_type = Node::CharSet;
         res.start->next1 = res.end;
         res.start->accept.set(chr);
 
@@ -167,7 +175,7 @@ struct CatExpr : AST
 {
     AST *lhs, *rhs;
 
-    CatExpr(Allocator<State> &allocator, AST *lhs, AST *rhs)
+    CatExpr(Allocator<Node> &allocator, AST *lhs, AST *rhs)
       : AST(allocator), lhs(lhs), rhs(rhs)
     {
         // ...
@@ -180,7 +188,7 @@ struct CatExpr : AST
 
         Pair res(lhs.start, rhs.end);
 
-        lhs.end->edge_type = State::EPSILON;
+        lhs.end->edge_type = Node::Epsilon;
         lhs.end->next1 = rhs.start;
 
         return res;
@@ -191,7 +199,7 @@ struct SelectExpr : AST
 {
     AST *lhs, *rhs;
 
-    SelectExpr(Allocator<State> &allocator, AST *lhs, AST *rhs)
+    SelectExpr(Allocator<Node> &allocator, AST *lhs, AST *rhs)
       : AST(allocator), lhs(lhs), rhs(rhs)
     {
         // ...
@@ -204,13 +212,13 @@ struct SelectExpr : AST
 
         Pair res(allocator_);
 
-        res.start->edge_type = State::EPSILON;
+        res.start->edge_type = Node::Epsilon;
         res.start->next1 = lhs.start;
         res.start->next2 = rhs.start;
 
-        lhs.end->edge_type = State::EPSILON;
+        lhs.end->edge_type = Node::Epsilon;
         lhs.end->next1 = res.end;
-        rhs.end->edge_type = State::EPSILON;
+        rhs.end->edge_type = Node::Epsilon;
         rhs.end->next1 = res.end;
 
         return res;
@@ -228,7 +236,7 @@ struct QualifierExpr : AST
     AST *expr;
     int n, m;
 
-    QualifierExpr(Allocator<State> &allocator, AST *expr,
+    QualifierExpr(Allocator<Node> &allocator, AST *expr,
         int n, int m = Mode::NTimes)
       : AST(allocator), expr(expr), n(n), m(m)
     {
@@ -245,7 +253,7 @@ struct QualifierExpr : AST
             {
                 Pair res(allocator_);
 
-                res.start->edge_type = State::EPSILON;
+                res.start->edge_type = Node::Epsilon;
                 res.start->next1 = res.end;
 
                 return res;
@@ -271,11 +279,11 @@ struct QualifierExpr : AST
 
                 Pair res(allocator_);
 
-                res.start->edge_type = State::EPSILON;
+                res.start->edge_type = Node::Epsilon;
                 res.start->next1 = expr.start;
                 res.start->next2 = res.end;
 
-                expr.end->edge_type = State::EPSILON;
+                expr.end->edge_type = Node::Epsilon;
                 expr.end->next1 = expr.start;
                 expr.end->next2 = res.end;
 
@@ -316,7 +324,7 @@ struct RangeExpr : AST
 {
     std::bitset<256> accept;
 
-    RangeExpr(Allocator<State> &allocator,
+    RangeExpr(Allocator<Node> &allocator,
         std::bitset<256> accept)
       : AST(allocator), accept(accept)
     {
@@ -327,7 +335,7 @@ struct RangeExpr : AST
     {
         Pair res(allocator_);
 
-        res.start->edge_type = State::CCL;
+        res.start->edge_type = Node::CharSet;
         res.start->next1 = res.end;
         res.start->accept = accept;
 
@@ -335,13 +343,13 @@ struct RangeExpr : AST
     }
 };
 
-struct SubExpr : AST
+struct CaptureExpr : AST
 {
     std::size_t index;
     std::string name;
     AST *expr;
 
-    SubExpr(Allocator<State> &allocator,
+    CaptureExpr(Allocator<Node> &allocator,
         std::size_t index, std::string name, AST *expr)
       : AST(allocator), index(index), name(std::move(name)), expr(expr)
     {
@@ -352,9 +360,13 @@ struct SubExpr : AST
     {
         auto res = expr->compile();
 
-        res.start->is_sub_expr = true;
+        res.start->state = Node::Begin;
         res.start->index = index;
         res.start->name = name;
+
+        res.end->state = Node::Begin;
+        res.end->index = index;
+        res.end->name = name;
 
         return res;
     }
@@ -406,7 +418,7 @@ struct Token
 class Parser
 {
   public:
-    Parser(Allocator<State> &allocator,
+    Parser(Allocator<Node> &allocator,
         Allocator<AST> &allocator4ast,
         const std::string &pattern)
       : allocator_(allocator)
@@ -686,7 +698,7 @@ class Parser
         get_next_token();
         if (cur_tok_.type != Token::Ques)
         {
-            auto sub_expr = allocator4ast_.allocate<SubExpr>(allocator_,
+            auto sub_expr = allocator4ast_.allocate<CaptureExpr>(allocator_,
                 ind_of_subexpr_, std::to_string(ind_of_subexpr_), gen_select_expr()
             );
             ++ind_of_subexpr_;
@@ -736,13 +748,13 @@ class Parser
             get_next_token();
             if (cur_tok_.type == Token::RParen)
             {
-                return allocator4ast_.allocate<SubExpr>(allocator_,
+                return allocator4ast_.allocate<CaptureExpr>(allocator_,
                     ind_of_subexpr_++, std::move(name), nullptr
                 );
             }
             else
             {
-                return allocator4ast_.allocate<SubExpr>(allocator_,
+                return allocator4ast_.allocate<CaptureExpr>(allocator_,
                     ind_of_subexpr_++, std::move(name), gen_select_expr()
                 );
             }
@@ -852,7 +864,7 @@ class Parser
     }
 
   private:
-    Allocator<State> &allocator_;
+    Allocator<Node> &allocator_;
     Allocator<AST> &allocator4ast_;
 
     const std::string &pattern_;
@@ -902,6 +914,12 @@ class Group
         return subs_;
     }
 
+    std::vector<std::string>
+    operator[](const std::string &name)
+    {
+
+    }
+
   private:
     std::string name_;
     std::string self_;
@@ -948,7 +966,7 @@ class GRE
 
   private:
     std::string pattern_;
-    details::Allocator<details::State> allocator_;
-    details::State *entry_;
+    details::Allocator<details::Node> allocator_;
+    details::Node *entry_;
 };
 } // namespace gre;

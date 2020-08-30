@@ -1,6 +1,7 @@
 #pragma once
 
 #include <map>
+#include <set>
 #include <list>
 #include <string>
 #include <bitset>
@@ -958,7 +959,8 @@ class GRE
     {
         details::Allocator<details::AST> allocator4ast;
         auto ast = details::Parser(allocator_, allocator4ast, pattern_).parse();
-        entry_ = ast->compile().start;
+        auto node = ast->compile();
+        start_ = node.start; end_ = node.end;
     }
 
     /**
@@ -969,7 +971,8 @@ class GRE
     {
         details::Allocator<details::AST> allocator4ast;
         auto ast = details::Parser(allocator_, allocator4ast, pattern_).parse();
-        entry_ = ast->compile().start;
+        auto node = ast->compile();
+        start_ = node.start; end_ = node.end;
     }
 
     const std::string &pattern() const
@@ -978,11 +981,22 @@ class GRE
     }
 
     std::optional<Group>
-    match(const std::string &text) const;
+    match(const std::string &text) const
+    {
+        std::set<details::Node *> visit{start_};
+
+        while (!visit.empty())
+        {
+
+        }
+
+        return std::optional<Group>();
+    }
 
   private:
     std::string pattern_;
     details::Allocator<details::Node> allocator_;
-    details::Node *entry_;
+    details::Node *start_;
+    details::Node *end_;
 };
 } // namespace gre;

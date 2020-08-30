@@ -917,7 +917,23 @@ class Group
     std::vector<std::string>
     operator[](const std::string &name)
     {
+        std::vector<std::string> res;
 
+        if (name_ == name)
+        {
+            res.push_back(self_);
+        }
+
+        for (auto &group : subs_)
+        {
+            auto temp = group[name];
+            for (auto &str : temp)
+            {
+                res.push_back(std::move(str));
+            }
+        }
+
+        return res;
     }
 
   private:

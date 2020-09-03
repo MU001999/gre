@@ -999,10 +999,10 @@ class GRE
     }
 
   private:
-    bool match_impl(const std::string &text,
+    std::optional<Group> match_impl(const std::string &text,
         std::size_t i, Group &group) const
     {
-        return true;
+        return std::optional<Group>();
     }
 
   private:

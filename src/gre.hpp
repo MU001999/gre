@@ -888,6 +888,8 @@ class Options
 */
 class Group
 {
+    friend class GRE;
+
   public:
     Group(std::string name)
       : name_(std::move(name))
@@ -988,20 +990,93 @@ class GRE
     std::optional<Group>
     match(const std::string &text) const
     {
-        Group res(pattern_);
+        /**
+         * find the pleased path by bfs
+         *  and then construct group from the path
+        */
 
-        if (match_impl(text, 0, res))
+        struct Chain
         {
-            return res;
+            /**
+             * pre->node points to the node which decides the path
+            */
+            Chain *pre;
+            details::Node *node;
+            std::size_t pos;
+        };
+
+        details::Allocator<Chain> allocator4chain;
+
+        Chain *result = nullptr;
+        std::set<Chain *> current{allocator4chain.allocate(nullptr, start_, 0)};
+
+        /**
+         * simple bfs to find path
+        */
+        while (!current.empty())
+        {
+            std::set<Chain *> temp;
+
+            for (auto chain : current)
+            {
+                /**
+                 * make sure that each cycle eats one input
+                */
+
+                auto node = chain->node;
+                auto pos = chain->pos;
+
+                for (bool cond = true; cond;)
+                {
+                    const auto input = text[pos];
+
+                    switch (node->edge_type)
+                    {
+                    case details::Node::Epsilon:
+                    {
+                        if (!node->next2)
+                        {
+                            node = node->next1;
+                        }
+                        else
+                        {
+                            temp.insert(allocator4chain.allocate(chain, node->next1, pos));
+                            temp.insert(allocator4chain.allocate(chain, node->next2, pos));
+                            cond = false;
+                        }
+                    }
+                        break;
+                    case details::Node::CharSet:
+                    {
+                        if (node->accept[input])
+                        {
+                            ++pos;
+                            node = node->next1;
+                        }
+                    }
+                        break;
+                    case details::Node::Empty:
+                        if (!result || result->pos < pos)
+                        {
+                            result = allocator4chain.allocate(chain, node, pos);
+                        }
+                        cond = false;
+                        break;
+                    }
+                }
+            }
+
+            current.swap(temp);
         }
 
-        return std::optional<Group>();
-    }
+        std::list<details::Node *> trunks;
 
-  private:
-    std::optional<Group> match_impl(const std::string &text,
-        std::size_t i, Group &group) const
-    {
+        while (result)
+        {
+            trunks.push_front(result->node);
+            result = result->pre;
+        }
+
         return std::optional<Group>();
     }
 

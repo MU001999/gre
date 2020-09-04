@@ -531,12 +531,9 @@ class Parser
             );
         }
 
-        /**
-         * TODO: throw here
-        */
         if (!lhs)
         {
-            // ...
+            throw;
         }
 
         return lhs;
@@ -808,9 +805,7 @@ class Parser
 
             if (cur_tok_.is_normal('-'))
             {
-                /**
-                 * TODO: throw here
-                */
+                throw;
             }
 
             auto start = cur_tok_.value;
@@ -821,9 +816,7 @@ class Parser
                 if (cur_tok_.type == Token::Predef
                     || cur_tok_.type == Token::RBracket)
                 {
-                    /**
-                     * TODO: throw here
-                    */
+                    throw;
                 }
 
                 auto end = cur_tok_.value;

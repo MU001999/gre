@@ -360,7 +360,14 @@ struct CaptureExpr : AST
 
     Pair compile() override
     {
-        auto res = expr->compile();
+        Pair res(allocator_);
+
+        auto expr = this->expr->compile();
+
+        res.start->edge_type = Node::Epsilon;
+        res.start->next1 = expr.start;
+        expr.end->edge_type = Node::Epsilon;
+        expr.end->next1 = res.end;
 
         res.start->state = Node::Begin;
         res.start->index = index;

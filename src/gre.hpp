@@ -366,7 +366,7 @@ struct CaptureExpr : AST
         res.start->index = index;
         res.start->name = name;
 
-        res.end->state = Node::Begin;
+        res.end->state = Node::End;
         res.end->index = index;
         res.end->name = name;
 
@@ -742,24 +742,26 @@ class Parser
 
             if (cur_tok_.value != '>')
             {
-                /**
-                 * TODO: throw here
-                */
+                throw;
             }
 
             // eat '>'
             get_next_token();
             if (cur_tok_.type == Token::RParen)
             {
+                get_next_token();
                 return allocator4ast_.allocate<CaptureExpr>(allocator_,
                     ind_of_subexpr_++, std::move(name), nullptr
                 );
             }
             else
             {
-                return allocator4ast_.allocate<CaptureExpr>(allocator_,
+                auto sub_expr = allocator4ast_.allocate<CaptureExpr>(allocator_,
                     ind_of_subexpr_++, std::move(name), gen_select_expr()
                 );
+                // eat ')'
+                get_next_token();
+                return sub_expr;
             }
         }
         else
@@ -914,6 +916,38 @@ class Group
         return subs_;
     }
 
+    std::vector<std::reference_wrapper<Group>>
+    subs(std::size_t index)
+    {
+        std::vector<std::reference_wrapper<Group>> res;
+
+        for (auto &group : subs_)
+        {
+            if (group.index_ == index)
+            {
+                res.emplace_back(group);
+            }
+        }
+
+        return res;
+    }
+
+    std::vector<std::reference_wrapper<Group>>
+    subs(const std::string &name)
+    {
+        std::vector<std::reference_wrapper<Group>> res;
+
+        for (auto &group : subs_)
+        {
+            if (group.name_ == name)
+            {
+                res.emplace_back(group);
+            }
+        }
+
+        return res;
+    }
+
     std::vector<std::string>
     operator[](std::size_t index)
     {
@@ -1051,13 +1085,6 @@ class GRE
 
                 for (bool cond = true; cond;)
                 {
-                    if (pos >= text.size())
-                    {
-                        break;
-                    }
-
-                    const auto input = text[pos];
-
                     switch (node->edge_type)
                     {
                     case details::Node::Epsilon:
@@ -1069,7 +1096,7 @@ class GRE
                         else
                         {
                             /**
-                             * for expr*
+                             * for (expr*)*
                              *  consider the next1 to expr's start
                              *  discard this chain if the cycle has beed traveled once
                             */
@@ -1087,10 +1114,22 @@ class GRE
                         break;
                     case details::Node::CharSet:
                     {
-                        if (node->accept[input])
+                        if (pos >= text.size())
                         {
-                            ++pos;
-                            node = node->next1;
+                            cond = false;
+                        }
+                        else
+                        {
+                            const auto input = text[pos];
+                            if (node->accept[input])
+                            {
+                                ++pos;
+                                node = node->next1;
+                            }
+                            else
+                            {
+                                cond = false;
+                            }
                         }
                     }
                         break;
@@ -1119,6 +1158,8 @@ class GRE
             trunks.push_front(result->node);
             result = result->pre;
         }
+        // pop start
+        trunks.pop_front();
 
         Group res_group(0, pattern_);
         std::list<Group *> groups_chain{&res_group};
@@ -1127,14 +1168,6 @@ class GRE
         std::size_t pos = 0;
         while (!trunks.empty())
         {
-            auto trunk = trunks.front();
-            trunks.pop_front();
-
-            if (node == trunk)
-            {
-                continue;
-            }
-
             while (node->next1 && !node->next2)
             {
                 if (node->state == details::Node::Begin)
@@ -1149,15 +1182,28 @@ class GRE
 
                 if (node->edge_type == details::Node::CharSet)
                 {
+                    const auto input = text[pos++];
                     for (auto group : groups_chain)
                     {
-                        group->self_ += text[pos++];
+                        group->self_ += input;
                     }
                 }
 
                 node = node->next1;
             }
-            node = trunk;
+
+            if (node->state == details::Node::Begin)
+            {
+                groups_chain.back()->subs_.emplace_back(node->index, node->name);
+                groups_chain.push_back(&groups_chain.back()->subs_.back());
+            }
+            else if (node->state == details::Node::End)
+            {
+                groups_chain.pop_back();
+            }
+
+            node = trunks.front();
+            trunks.pop_front();
         }
 
         return res_group;

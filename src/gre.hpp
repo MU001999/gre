@@ -692,6 +692,7 @@ class Parser
             }
         }
 
+        return term;
     }
 
     AST *gen_sub_expr()
@@ -763,9 +764,7 @@ class Parser
         }
         else
         {
-            /**
-             * TODO: throw here
-            */
+            throw;
         }
     }
 
@@ -1019,6 +1018,12 @@ class GRE
             Chain *pre;
             details::Node *node;
             std::size_t pos;
+
+            Chain(Chain *pre, details::Node *node, std::size_t pos)
+              : pre(pre), node(node), pos(pos)
+            {
+                // ...
+            }
         };
 
         details::Allocator<Chain> allocator4chain;

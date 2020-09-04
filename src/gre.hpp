@@ -3,6 +3,7 @@
 #include <map>
 #include <set>
 #include <list>
+#include <tuple>
 #include <string>
 #include <bitset>
 #include <memory>
@@ -426,7 +427,7 @@ class Parser
       , allocator4ast_(allocator4ast)
       , pattern_(pattern)
       , ind_of_pattern_(0)
-      , ind_of_subexpr_(0)
+      , ind_of_subexpr_(1)
     {
         get_next_token();
     }
@@ -891,15 +892,12 @@ class Group
     friend class GRE;
 
   public:
-    Group(std::string name)
-      : name_(std::move(name))
+    Group(std::size_t index,
+        std::string name)
+      : index_(index)
+      , name_(std::move(name))
     {
         // ...
-    }
-
-    void set_self(std::string self)
-    {
-        self_.swap(self);
     }
 
     const std::string &name() const
@@ -917,9 +915,26 @@ class Group
         return subs_;
     }
 
-    Group &operator[](std::size_t i)
+    std::vector<std::string>
+    operator[](std::size_t index)
     {
-        return subs_[i];
+        std::vector<std::string> res;
+
+        if (index_ == index + 1)
+        {
+            res.push_back(self_);
+        }
+
+        for (auto &group : subs_)
+        {
+            auto temp = group[index];
+            for (auto &str : temp)
+            {
+                res.push_back(std::move(str));
+            }
+        }
+
+        return res;
     }
 
     std::vector<std::string>
@@ -945,6 +960,7 @@ class Group
     }
 
   private:
+    std::size_t index_;
     std::string name_;
     std::string self_;
     std::vector<Group> subs_;
@@ -1010,6 +1026,8 @@ class GRE
         Chain *result = nullptr;
         std::set<Chain *> current{allocator4chain.allocate(nullptr, start_, 0)};
 
+        std::set<std::tuple<details::Node *, details::Node *, std::size_t>> meeted_paths;
+
         /**
          * simple bfs to find path
         */
@@ -1028,6 +1046,11 @@ class GRE
 
                 for (bool cond = true; cond;)
                 {
+                    if (pos >= text.size())
+                    {
+                        break;
+                    }
+
                     const auto input = text[pos];
 
                     switch (node->edge_type)
@@ -1040,8 +1063,19 @@ class GRE
                         }
                         else
                         {
-                            temp.insert(allocator4chain.allocate(chain, node->next1, pos));
-                            temp.insert(allocator4chain.allocate(chain, node->next2, pos));
+                            /**
+                             * for expr*
+                             *  consider the next1 to expr's start
+                             *  discard this chain if the cycle has beed traveled once
+                            */
+                            auto path = std::make_tuple(chain->node, node, pos);
+                            if (!meeted_paths.count(path))
+                            {
+                                temp.insert(allocator4chain.allocate(chain, node->next1, pos));
+                                temp.insert(allocator4chain.allocate(chain, node->next2, pos));
+
+                                meeted_paths.insert(path);
+                            }
                             cond = false;
                         }
                     }
@@ -1069,15 +1103,59 @@ class GRE
             current.swap(temp);
         }
 
-        std::list<details::Node *> trunks;
+        if (!result)
+        {
+            return std::optional<Group>();
+        }
 
+        std::list<details::Node *> trunks;
         while (result)
         {
             trunks.push_front(result->node);
             result = result->pre;
         }
 
-        return std::optional<Group>();
+        Group res_group(0, pattern_);
+        std::list<Group *> groups_chain{&res_group};
+
+        auto node = start_;
+        std::size_t pos = 0;
+        while (!trunks.empty())
+        {
+            auto trunk = trunks.front();
+            trunks.pop_front();
+
+            if (node == trunk)
+            {
+                continue;
+            }
+
+            while (node->next1 && !node->next2)
+            {
+                if (node->state == details::Node::Begin)
+                {
+                    groups_chain.back()->subs_.emplace_back(node->index, node->name);
+                    groups_chain.push_back(&groups_chain.back()->subs_.back());
+                }
+                else if (node->state == details::Node::End)
+                {
+                    groups_chain.pop_back();
+                }
+
+                if (node->edge_type == details::Node::CharSet)
+                {
+                    for (auto group : groups_chain)
+                    {
+                        group->self_ += text[pos++];
+                    }
+                }
+
+                node = node->next1;
+            }
+            node = trunk;
+        }
+
+        return res_group;
     }
 
   private:

@@ -64,6 +64,13 @@ TEST(Capture, SimpleNested)
     }
 }
 
+TEST(Failure, Main)
+{
+    auto re = GRE("abc");
+    auto result = re.match("b");
+    ASSERT_EQ(result.has_value(), false);
+}
+
 int main(int argc, char *argv[])
 {
     testing::InitGoogleTest(&argc, argv);

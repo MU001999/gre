@@ -5,9 +5,14 @@
 using namespace std;
 using namespace gre;
 
-TEST(Simple, SingleChar)
+TEST(SingleChar, Alpha)
 {
     ASSERT_EQ(GRE::full_match("a"s, "a").value().self(), "a");
+}
+
+TEST(SingleChar, Blank)
+{
+    ASSERT_EQ(GRE::full_match(" "s, "  ").value().self(), " ");
 }
 
 TEST(Capture, Multi)

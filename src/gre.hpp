@@ -884,6 +884,98 @@ class Options
     Options() = default;
 };
 
+class Group;
+class GroupRef
+{
+  public:
+    GroupRef(Group &group)
+      : group_(group)
+    {
+        // ...
+    }
+
+    Group &get()
+    {
+        return group_;
+    }
+
+  private:
+    Group &group_;
+};
+class GroupRefsIterator
+{
+    using RealIterator = std::vector<GroupRef>::iterator;
+
+  public:
+    GroupRefsIterator(RealIterator it)
+      : it_(std::move(it))
+    {
+        // ...
+    }
+
+    Group &operator*()
+    {
+        return it_->get();
+    }
+
+    Group *operator->()
+    {
+        return &it_->get();
+    }
+
+    bool operator==(const GroupRefsIterator &rhs)
+    {
+        return it_ == rhs.it_;
+    }
+
+    bool operator!=(const GroupRefsIterator &rhs)
+    {
+        return it_ != rhs.it_;
+    }
+
+    GroupRefsIterator &operator++()
+    {
+        ++it_;
+        return *this;
+    }
+
+  private:
+    RealIterator it_;
+};
+class GroupRefs
+{
+  public:
+    GroupRefs() = default;
+
+    void push_back(Group &group)
+    {
+        refs_.emplace_back(group);
+    }
+
+    Group &operator[](std::size_t i)
+    {
+        return refs_[i].get();
+    }
+
+    GroupRefsIterator begin()
+    {
+        return GroupRefsIterator(refs_.begin());
+    }
+
+    GroupRefsIterator end()
+    {
+        return GroupRefsIterator(refs_.end());
+    }
+
+    std::size_t size()
+    {
+        return refs_.size();
+    }
+
+  private:
+    std::vector<GroupRef> refs_;
+};
+
 /**
  * "((pattern)*)"
  *  will generate Group{Group{}, ...}
@@ -916,80 +1008,93 @@ class Group
         return subs_;
     }
 
-    std::vector<std::reference_wrapper<Group>>
-    subs(std::size_t index)
+    /**
+     * captures will return all captures
+    */
+    GroupRefs captures(std::size_t index)
     {
-        std::vector<std::reference_wrapper<Group>> res;
+        GroupRefs res;
+
+        if (index_ == index + 1)
+        {
+            res.push_back(*this);
+        }
+
+        for (auto &sub : subs_)
+        {
+            for (auto &group : sub.captures(index))
+            {
+                res.push_back(group);
+            }
+        }
+
+        return res;
+    }
+
+    GroupRefs captures(const std::string &name)
+    {
+        GroupRefs res;
+
+        if (name_ == name)
+        {
+            res.push_back(*this);
+        }
+
+        for (auto &sub : subs_)
+        {
+            for (auto &group : sub.captures(name))
+            {
+                res.push_back(group);
+            }
+        }
+
+        return res;
+    }
+
+    /**
+     * different from captures
+     *  operator[] will only return groups non-nested
+    */
+    GroupRefs
+    operator[](std::size_t index)
+    {
+        GroupRefs res;
 
         for (auto &group : subs_)
         {
             if (group.index_ == index)
             {
-                res.emplace_back(group);
+                res.push_back(group);
             }
         }
 
         return res;
     }
 
-    std::vector<std::reference_wrapper<Group>>
-    subs(const std::string &name)
+    GroupRefs
+    operator[](const std::string &name)
     {
-        std::vector<std::reference_wrapper<Group>> res;
+        GroupRefs res;
 
         for (auto &group : subs_)
         {
             if (group.name_ == name)
             {
-                res.emplace_back(group);
+                res.push_back(group);
             }
         }
 
         return res;
     }
 
-    std::vector<std::string>
-    operator[](std::size_t index)
+    bool operator==(const std::string &rhs) const
     {
-        std::vector<std::string> res;
-
-        if (index_ == index + 1)
-        {
-            res.push_back(self_);
-        }
-
-        for (auto &group : subs_)
-        {
-            auto temp = group[index];
-            for (auto &str : temp)
-            {
-                res.push_back(std::move(str));
-            }
-        }
-
-        return res;
+        return self_ == rhs;
     }
 
-    std::vector<std::string>
-    operator[](const std::string &name)
+    operator std::string() const
     {
-        std::vector<std::string> res;
-
-        if (name_ == name)
-        {
-            res.push_back(self_);
-        }
-
-        for (auto &group : subs_)
-        {
-            auto temp = group[name];
-            for (auto &str : temp)
-            {
-                res.push_back(std::move(str));
-            }
-        }
-
-        return res;
+        return self_;
     }
 
   private:

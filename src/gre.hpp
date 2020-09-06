@@ -1320,4 +1320,4 @@ class GRE
     details::Node *start_;
     details::Node *end_;
 };
-} // namespace gre;
+} // namespace gre

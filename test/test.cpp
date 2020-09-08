@@ -88,6 +88,20 @@ TEST(Capture, SimpleNested)
     }
 }
 
+TEST(Capture, NameRef)
+{
+    auto re = GRE("(?<test>a)(?<test>)*");
+    auto result = re.match("aaaaa").value();
+
+    ASSERT_EQ(result, "aaaaa"s);
+    ASSERT_EQ(result.subs().size(), 5);
+
+    for (const auto &sub : result["test"])
+    {
+        ASSERT_EQ(sub, "a"s);
+    }
+}
+
 TEST(Failure, Main)
 {
     auto re = GRE("abc");

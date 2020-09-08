@@ -114,7 +114,11 @@ class Allocator
 
     void record(const std::string &name, T *expr)
     {
-
+        if (mapping_named_captures_.count(name))
+        {
+            throw;
+        }
+        mapping_named_captures_[name] = expr;
     }
 
     T *find(const std::string &name)
@@ -789,14 +793,13 @@ class Parser
                     allocator_, allocator4ast_,
                     ind_of_subexpr_++, std::move(name), nullptr
                 );
-                get_next_token();
                 return capture;
             }
             else
             {
                 auto capture = allocator4ast_.allocate<CaptureExpr>(
                     allocator_, allocator4ast_,
-                    ind_of_subexpr_++, std::move(name), gen_select_expr()
+                    ind_of_subexpr_++, name, gen_select_expr()
                 );
                 allocator4ast_.record(name, capture);
                 // eat ')'

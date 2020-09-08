@@ -15,6 +15,16 @@ TEST(SingleChar, Blank)
     ASSERT_EQ(GRE::full_match(" "s, "  ").value(), " "s);
 }
 
+TEST(Cat, Literal)
+{
+    ASSERT_EQ(GRE::full_match("abcd"s, "abcde").value(), "abcd"s);
+}
+
+TEST(Cat, WithCapture)
+{
+    ASSERT_EQ(GRE::full_match("ab(cd)"s, "abcde").value(), "abcd"s);
+}
+
 TEST(Capture, Multi)
 {
     auto re = GRE("(a)*");

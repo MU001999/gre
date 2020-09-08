@@ -112,8 +112,23 @@ class Allocator
         return ptr;
     }
 
+    void record(const std::string &name, T *expr)
+    {
+
+    }
+
+    T *find(const std::string &name)
+    {
+        if (mapping_named_captures_.count(name))
+        {
+            return mapping_named_captures_[name];
+        }
+        return nullptr;
+    }
+
   private:
     std::list<T *> allocated_;
+    std::map<std::string, T *> mapping_named_captures_;
 };
 
 struct Pair
@@ -347,13 +362,16 @@ struct RangeExpr : AST
 
 struct CaptureExpr : AST
 {
+    Allocator<AST> &allocator4ast;
     std::size_t index;
     std::string name;
     AST *expr;
 
     CaptureExpr(Allocator<Node> &allocator,
+        Allocator<AST> &allocator4ast,
         std::size_t index, std::string name, AST *expr)
-      : AST(allocator), index(index), name(std::move(name)), expr(expr)
+      : AST(allocator), allocator4ast(allocator4ast)
+      , index(index), name(std::move(name)), expr(expr)
     {
         // ...
     }
@@ -362,7 +380,9 @@ struct CaptureExpr : AST
     {
         Pair res(allocator_);
 
-        auto expr = this->expr->compile();
+        auto expr = this->expr
+                  ? this->expr->compile()
+                  : allocator4ast.find(name)->compile();
 
         res.start->edge_type = Node::Epsilon;
         res.start->next1 = expr.start;
@@ -705,12 +725,19 @@ class Parser
         get_next_token();
         if (cur_tok_.type != Token::Ques)
         {
-            auto sub_expr = allocator4ast_.allocate<CaptureExpr>(allocator_,
-                ind_of_subexpr_, std::to_string(ind_of_subexpr_), gen_select_expr()
+            /**
+             * capture without name will has default name which is the literal of its index
+            */
+            auto name = std::to_string(ind_of_subexpr_);
+            auto capture = allocator4ast_.allocate<CaptureExpr>(
+                allocator_, allocator4ast_,
+                ind_of_subexpr_, name, gen_select_expr()
             );
+            allocator4ast_.record(name, capture);
+
             ++ind_of_subexpr_;
             get_next_token();
-            return sub_expr;
+            return capture;
         }
 
         // eat '?'
@@ -736,6 +763,10 @@ class Parser
             std::string name;
             /**
              * only normal characters can occur in name
+             *
+             * TODO: enable (?<NUMERAL>) such as (?<1>)
+             *  but not support (?<1>...) because this may influence
+             *  other captures without name
             */
             while (cur_tok_.type == Token::Normal
                 and cur_tok_.value != '>')
@@ -754,18 +785,23 @@ class Parser
             if (cur_tok_.type == Token::RParen)
             {
                 get_next_token();
-                return allocator4ast_.allocate<CaptureExpr>(allocator_,
+                auto capture = allocator4ast_.allocate<CaptureExpr>(
+                    allocator_, allocator4ast_,
                     ind_of_subexpr_++, std::move(name), nullptr
                 );
+                get_next_token();
+                return capture;
             }
             else
             {
-                auto sub_expr = allocator4ast_.allocate<CaptureExpr>(allocator_,
+                auto capture = allocator4ast_.allocate<CaptureExpr>(
+                    allocator_, allocator4ast_,
                     ind_of_subexpr_++, std::move(name), gen_select_expr()
                 );
+                allocator4ast_.record(name, capture);
                 // eat ')'
                 get_next_token();
-                return sub_expr;
+                return capture;
             }
         }
         else

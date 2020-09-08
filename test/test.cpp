@@ -25,6 +25,15 @@ TEST(Cat, WithCapture)
     ASSERT_EQ(GRE::full_match("ab(cd)"s, "abcde").value(), "abcd"s);
 }
 
+TEST(Select, Single)
+{
+    auto re = GRE("a|b|c");
+    ASSERT_EQ(re.match("abc").value(), "a"s);
+    ASSERT_EQ(re.match("bca").value(), "b"s);
+    ASSERT_EQ(re.match("cab").value(), "c"s);
+    ASSERT_EQ(re.match("d").has_value(), false);
+}
+
 TEST(Capture, Multi)
 {
     auto re = GRE("(a)*");

@@ -933,6 +933,12 @@ class GroupRef
         // ...
     }
 
+    GroupRef(const GroupRef &other)
+      : group_(other.group_)
+    {
+        // ...
+    }
+
     Group &get()
     {
         return group_;
@@ -985,6 +991,11 @@ class GroupRefs
 {
   public:
     GroupRefs() = default;
+    GroupRefs(const GroupRefs &other)
+      : refs_(other.refs_)
+    {
+        // ...
+    }
 
     void push_back(Group &group)
     {

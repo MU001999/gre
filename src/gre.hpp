@@ -1052,6 +1052,11 @@ class Group
     */
     GroupRefs captures(std::size_t index)
     {
+        if (cache4captures1_.count(index))
+        {
+            return cache4captures1_[index];
+        }
+
         GroupRefs res;
 
         if (index_ == index + 1)
@@ -1072,6 +1077,11 @@ class Group
 
     GroupRefs captures(const std::string &name)
     {
+        if (cache4captures2_.count(name))
+        {
+            return cache4captures2_[name];
+        }
+
         GroupRefs res;
 
         if (name_ == name)
@@ -1097,6 +1107,11 @@ class Group
     GroupRefs
     operator[](std::size_t index)
     {
+        if (cache4astree1_.count(index))
+        {
+            return cache4astree1_[index];
+        }
+
         GroupRefs res;
 
         for (auto &group : subs_)
@@ -1113,6 +1128,11 @@ class Group
     GroupRefs
     operator[](const std::string &name)
     {
+        if (cache4astree2_.count(name))
+        {
+            return cache4astree2_[name];
+        }
+
         GroupRefs res;
 
         for (auto &group : subs_)
@@ -1141,6 +1161,16 @@ class Group
     std::string name_;
     std::string self_;
     std::vector<Group> subs_;
+
+    // caches
+    std::map<std::size_t, GroupRefs>
+    cache4astree1_; // when calling [] with std::size_t
+    std::map<std::string, GroupRefs>
+    cache4astree2_; // when calling [] with std::string
+    std::map<std::size_t, GroupRefs>
+    cache4captures1_; // when calling captures with std::size_t
+    std::map<std::string, GroupRefs>
+    cache4captures2_; // when calling captures with std::string
 };
 
 class GRE

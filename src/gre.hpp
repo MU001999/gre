@@ -1031,7 +1031,7 @@ class GroupRefs
 };
 
 /**
- * "((pattern)*)"
+ * "((...)*)"
  *  will generate Group{Group{}, ...}
 */
 class Group

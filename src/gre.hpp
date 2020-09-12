@@ -758,6 +758,10 @@ class Parser
             auto sub_expr = gen_select_expr();
             get_next_token();
             return sub_expr;
+
+            /**
+             * TODO: enable using (?:<...>) or (?:<...>...) to define named non-captures
+            */
         }
         // ?< not ?\<
         else if (cur_tok_.is_normal('<'))

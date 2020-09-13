@@ -755,13 +755,19 @@ class Parser
         {
             // eat ':'
             get_next_token();
-            auto sub_expr = gen_select_expr();
-            get_next_token();
-            return sub_expr;
 
-            /**
-             * TODO: enable using (?:<...>) or (?:<...>...) to define named non-captures
-            */
+            if (cur_tok_.is_normal('<'))
+            {
+                /**
+                 * TODO: enable using (?:<...>) or (?:<...>...) to define named non-captures
+                */
+            }
+            else
+            {
+                auto sub_expr = gen_select_expr();
+                get_next_token();
+                return sub_expr;
+            }
         }
         // ?< not ?\<
         else if (cur_tok_.is_normal('<'))

@@ -1205,6 +1205,18 @@ class GRE
     }
 
   public:
+    GRE(const char *pattern)
+      : GRE(std::string(pattern))
+    {
+        // ...
+    }
+
+    GRE(const char *pattern, const Options &options)
+      : GRE(std::string(pattern), options)
+    {
+        // ...
+    }
+
     GRE(std::string pattern)
       : pattern_(std::move(pattern))
     {

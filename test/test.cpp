@@ -7,22 +7,22 @@ using namespace gre;
 
 TEST(SingleChar, Alpha)
 {
-    ASSERT_EQ(GRE::full_match("a"s, "a").value(), "a"s);
+    ASSERT_EQ(GRE::full_match("a", "a").value(), "a"s);
 }
 
 TEST(SingleChar, Blank)
 {
-    ASSERT_EQ(GRE::full_match(" "s, "  ").value(), " "s);
+    ASSERT_EQ(GRE::full_match(" ", "  ").value(), " "s);
 }
 
 TEST(Cat, Literal)
 {
-    ASSERT_EQ(GRE::full_match("abcd"s, "abcde").value(), "abcd"s);
+    ASSERT_EQ(GRE::full_match("abcd", "abcde").value(), "abcd"s);
 }
 
 TEST(Cat, WithCapture)
 {
-    ASSERT_EQ(GRE::full_match("ab(cd)"s, "abcde").value(), "abcd"s);
+    ASSERT_EQ(GRE::full_match("ab(cd)", "abcde").value(), "abcd"s);
 }
 
 TEST(Select, Single)
@@ -104,9 +104,7 @@ TEST(Capture, NameRef)
 
 TEST(Failure, Main)
 {
-    auto re = GRE("abc");
-    auto result = re.match("b");
-    ASSERT_EQ(result.has_value(), false);
+    ASSERT_EQ(GRE::full_match("abc", "b").has_value(), false);
 }
 
 int main(int argc, char *argv[])

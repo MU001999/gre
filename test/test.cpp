@@ -102,6 +102,11 @@ TEST(Capture, NameRef)
     }
 }
 
+TEST(Qualifier, NTimes)
+{
+    ASSERT_EQ(GRE::full_match("a{5}", "aaaaa").value(), "aaaaa"s);
+}
+
 TEST(Failure, Main)
 {
     ASSERT_EQ(GRE::full_match("abc", "b").has_value(), false);

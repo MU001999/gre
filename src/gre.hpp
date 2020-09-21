@@ -269,27 +269,23 @@ struct QualifierExpr : AST
         // {n}
         if (m == NTimes)
         {
-            // check of n < 0 is in parsing
-            if (n == 0)
+            // check of n < 1 is in parsing
+            if (n < 1)
             {
-                Pair res(allocator_);
-
-                res.start->edge_type = Node::Epsilon;
-                res.start->next1 = res.end;
-
-                return res;
+                throw;
+            }
+            else if (n == 1)
+            {
+                return expr->compile();
             }
 
-            // assert n > 0
+            // assert n > 1
             Allocator<AST> temp_allocator;
-            auto ast = expr;
-            for (int i = 1; i < n; ++i)
-            {
-                ast = temp_allocator.allocate<CatExpr>(
-                    allocator_, ast, expr
-                );
-            }
-            return ast->compile();
+            return temp_allocator.allocate<CatExpr>(
+                allocator_, expr, temp_allocator.allocate<QualifierExpr>(
+                    allocator_, expr, n - 1, NTimes
+                )
+            )->compile();
         }
         // {n, }
         else if (m == AtLeastNTimes)
@@ -539,6 +535,10 @@ class Parser
             return token(Token::LBracket);
         case ']':
             return token(Token::RBracket);
+        case '{':
+            return token(Token::LBrace);
+        case '}':
+            return token(Token::RBrace);
         }
     }
 

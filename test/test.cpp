@@ -107,6 +107,11 @@ TEST(Qualifier, NTimes)
     ASSERT_EQ(GRE::full_match("a{5}", "aaaaa").value(), "aaaaa"s);
 }
 
+TEST(Qualifier, AtLeastNTimes)
+{
+    ASSERT_EQ(GRE::full_match("a{5,}", "aaaaaa").value(), "aaaaaa"s);
+}
+
 TEST(Failure, Main)
 {
     ASSERT_EQ(GRE::full_match("abc", "b").has_value(), false);

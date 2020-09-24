@@ -723,6 +723,18 @@ class Parser
         return term;
     }
 
+    std::string gen_normal_str(char end)
+    {
+        std::string result;
+        while (cur_tok_.type == Token::Normal
+            and cur_tok_.value != end)
+        {
+            result += cur_tok_.value;
+            get_next_token();
+        }
+        return result;
+    }
+
     AST *gen_sub_expr()
     {
         // eat '('
@@ -768,7 +780,18 @@ class Parser
                 */
                 // eat '<'
                 get_next_token();
-                std::string name;
+                auto name = gen_normal_str('>');
+
+                // check and eat
+                if (cur_tok_.value != '>')
+                {
+                    throw;
+                }
+                get_next_token();
+
+                /**
+                 * NOTE: don't enable (?:<NUMBER>...)
+                */
             }
             else
             {
@@ -782,7 +805,6 @@ class Parser
         {
             // eat '<'
             get_next_token();
-            std::string name;
             /**
              * only normal characters can occur in name
              *
@@ -790,20 +812,15 @@ class Parser
              *  but not support (?<1>...) because this may influence
              *  other captures without name
             */
-            while (cur_tok_.type == Token::Normal
-                and cur_tok_.value != '>')
-            {
-                name += cur_tok_.value;
-                get_next_token();
-            }
+            auto name = gen_normal_str('>');
 
+            // check and eat
             if (cur_tok_.value != '>')
             {
                 throw;
             }
-
-            // eat '>'
             get_next_token();
+
             if (cur_tok_.type == Token::RParen)
             {
                 get_next_token();

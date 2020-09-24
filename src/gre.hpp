@@ -753,6 +753,11 @@ class Parser
         */
         if (cur_tok_.is_normal(':'))
         {
+            /**
+             * NOTE: the sub-expr of (?:...) will be compiled without number like other captured-expressions,
+             *  so we can't reuse the sub-expr later by number
+            */
+
             // eat ':'
             get_next_token();
 
@@ -761,6 +766,9 @@ class Parser
                 /**
                  * TODO: enable using (?:<...>) or (?:<...>...) to use or define named non-captures
                 */
+                // eat '<'
+                get_next_token();
+                std::string name;
             }
             else
             {

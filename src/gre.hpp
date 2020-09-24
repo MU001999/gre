@@ -759,7 +759,7 @@ class Parser
             if (cur_tok_.is_normal('<'))
             {
                 /**
-                 * TODO: enable using (?:<...>) or (?:<...>...) to define named non-captures
+                 * TODO: enable using (?:<...>) or (?:<...>...) to use or define named non-captures
                 */
             }
             else

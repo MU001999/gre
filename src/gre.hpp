@@ -988,7 +988,7 @@ class Parser
     std::size_t ind_of_pattern_;
     Token cur_tok_;
 
-    std::size_t ind_of_subexpr_;
+    int ind_of_subexpr_;
 };
 } // namespace details
 

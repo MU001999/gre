@@ -70,7 +70,7 @@ struct Node
     };
 
     CaptureState state;
-    std::size_t index;
+    int index;
     std::string name;
 
     Node()
@@ -363,13 +363,13 @@ struct RangeExpr : AST
 struct CaptureExpr : AST
 {
     Allocator<AST> &allocator4ast;
-    std::size_t index;
+    int index;
     std::string name;
     AST *expr;
 
     CaptureExpr(Allocator<Node> &allocator,
         Allocator<AST> &allocator4ast,
-        std::size_t index, std::string name, AST *expr)
+        int index, std::string name, AST *expr)
       : AST(allocator), allocator4ast(allocator4ast)
       , index(index), name(std::move(name)), expr(expr)
     {
@@ -723,8 +723,13 @@ class Parser
         return term;
     }
 
-    std::string gen_normal_str(char end)
+    /**
+     * return (normal string, is number or not)
+    */
+    std::pair<std::string, bool>
+    gen_normal_str(char end)
     {
+        bool number = cur_tok_.is_digit();
         std::string result;
         while (cur_tok_.type == Token::Normal
             and cur_tok_.value != end)
@@ -732,11 +737,17 @@ class Parser
             result += cur_tok_.value;
             get_next_token();
         }
-        return result;
+        return std::make_pair(std::move(result), number);
     }
 
     AST *gen_sub_expr()
     {
+        /**
+         * NOTE: only sub-exprs like `(...)` without names
+         *  will be given index and others like `(?:...)`, `(?<NAME>...)` and `(?<NAME>)` don't have indexs
+         *  but `(?<NUMBER>)` will generate a new index now
+        */
+
         // eat '('
         get_next_token();
         if (cur_tok_.type != Token::Ques)
@@ -745,14 +756,17 @@ class Parser
              * capture without name will has default name which is the literal of its index
             */
             auto name = std::to_string(ind_of_subexpr_);
+            auto index = ind_of_subexpr_++;
+            auto sub_expr = gen_select_expr();
+
             auto capture = allocator4ast_.allocate<CaptureExpr>(
                 allocator_, allocator4ast_,
-                ind_of_subexpr_, name, gen_select_expr()
+                index, name, sub_expr
             );
-            allocator4ast_.record(name, capture);
 
-            ++ind_of_subexpr_;
+            allocator4ast_.record(name, sub_expr);
             get_next_token();
+
             return capture;
         }
 
@@ -775,9 +789,6 @@ class Parser
 
             if (cur_tok_.is_normal('<'))
             {
-                /**
-                 * TODO: enable using (?:<...>) or (?:<...>...) to use or define named non-captures
-                */
                 // eat '<'
                 get_next_token();
                 auto name = gen_normal_str('>');
@@ -789,9 +800,26 @@ class Parser
                 }
                 get_next_token();
 
+                if (cur_tok_.type == Token::RParen)
+                {
+                    get_next_token();
+                    return allocator4ast_.find(name.first);
+                }
                 /**
-                 * NOTE: don't enable (?:<NUMBER>...)
+                 * NOTE: not enable (?:<NUMBER>...)
                 */
+                else if (!name.second)
+                {
+                    auto sub_expr = gen_select_expr();
+                    allocator4ast_.record(name.first, sub_expr);
+                    // eat ')'
+                    get_next_token();
+                    return sub_expr;
+                }
+                else
+                {
+                    throw;
+                }
             }
             else
             {
@@ -808,7 +836,7 @@ class Parser
             /**
              * only normal characters can occur in name
              *
-             * TODO: enable (?<NUMERAL>) such as (?<1>)
+             * NOTE: enable (?<NUMERAL>) such as (?<1>)
              *  but not support (?<1>...) because this may influence
              *  other captures without name
             */
@@ -826,20 +854,32 @@ class Parser
                 get_next_token();
                 auto capture = allocator4ast_.allocate<CaptureExpr>(
                     allocator_, allocator4ast_,
-                    ind_of_subexpr_++, std::move(name), nullptr
+                    name.second ? ind_of_subexpr_ : -1, name.first, nullptr
                 );
+
+                if (name.second)
+                {
+                    ++ind_of_subexpr_;
+                }
+
+                return capture;
+            }
+            // if not NUMBER
+            else if (!name.second)
+            {
+                auto sub_expr = gen_select_expr();
+                auto capture = allocator4ast_.allocate<CaptureExpr>(
+                    allocator_, allocator4ast_,
+                    -1, name.first, sub_expr
+                );
+                allocator4ast_.record(name.first, sub_expr);
+                // eat ')'
+                get_next_token();
                 return capture;
             }
             else
             {
-                auto capture = allocator4ast_.allocate<CaptureExpr>(
-                    allocator_, allocator4ast_,
-                    ind_of_subexpr_++, name, gen_select_expr()
-                );
-                allocator4ast_.record(name, capture);
-                // eat ')'
-                get_next_token();
-                return capture;
+                throw;
             }
         }
         else

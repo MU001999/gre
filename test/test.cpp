@@ -64,25 +64,25 @@ TEST(Capture, Named)
 
 TEST(Capture, SimpleNested)
 {
-    auto re = GRE("(?<1>(?<2>a)*(?<3>b))*");
+    auto re = GRE("((a)*(b))*");
     auto result = re.match("babaabaaab").value();
 
     ASSERT_EQ(result, "babaabaaab"s);
     ASSERT_EQ(result.subs().size(), 4);
 
     int i = 0;
-    for (auto &sub : result["1"])
+    for (auto &sub : result[0])
     {
         ASSERT_EQ(sub, string(i, 'a') + "b");
 
-        auto subs2 = sub["2"];
+        auto subs2 = sub[1];
         ASSERT_EQ(subs2.size(), i++);
         for (const auto &str : subs2)
         {
             ASSERT_EQ(str, "a"s);
         }
 
-        auto subs3 = sub["3"];
+        auto subs3 = sub[2];
         ASSERT_EQ(subs3.size(), 1);
         ASSERT_EQ(subs3[0], "b"s);
     }

@@ -23,6 +23,21 @@ TEST(PreDef, Digit)
     }
 }
 
+TEST(PreDef, Word)
+{
+    ASSERT_EQ(GRE::full_match("\\w", "_").value(), "_"s);
+
+    for (char chr = 'a'; chr <= 'z'; ++chr)
+    {
+        ASSERT_EQ(GRE::full_match("\\w", std::string(1, chr)).value(), std::string(1, chr));
+    }
+
+    for (char chr = 'A'; chr <= 'Z'; ++chr)
+    {
+        ASSERT_EQ(GRE::full_match("\\w", std::string(1, chr)).value(), std::string(1, chr));
+    }
+}
+
 TEST(Cat, Literal)
 {
     ASSERT_EQ(GRE::full_match("abcd", "abcde").value(), "abcd"s);

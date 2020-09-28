@@ -15,6 +15,14 @@ TEST(SingleChar, Blank)
     ASSERT_EQ(GRE::full_match(" ", "  ").value(), " "s);
 }
 
+TEST(PreDef, Digit)
+{
+    for (char n = '0'; n <= '9'; ++n)
+    {
+        ASSERT_EQ(GRE::full_match("\\d", std::string(1, n)).value(), std::string(1, n));
+    }
+}
+
 TEST(Cat, Literal)
 {
     ASSERT_EQ(GRE::full_match("abcd", "abcde").value(), "abcd"s);

@@ -31,6 +31,22 @@ TEST(PreDef, Digit)
     }
 }
 
+TEST(PreDef, LowerWord)
+{
+    for (char chr = 'a'; chr <= 'z'; ++chr)
+    {
+        ASSERT_EQ(GRE::full_match("\\l", string(1, chr)).value(), string(1, chr));
+    }
+}
+
+TEST(PreDef, UpperWord)
+{
+    for (char chr = 'A'; chr <= 'Z'; ++chr)
+    {
+        ASSERT_EQ(GRE::full_match("\\u", string(1, chr)).value(), string(1, chr));
+    }
+}
+
 TEST(PreDef, Word)
 {
     ASSERT_EQ(GRE::full_match("\\w", "_").value(), "_"s);

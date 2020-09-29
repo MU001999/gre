@@ -15,11 +15,19 @@ TEST(SingleChar, Blank)
     ASSERT_EQ(GRE::full_match(" ", "  ").value(), " "s);
 }
 
+TEST(PreDef, Space)
+{
+    for (char chr : " \r\f\v\n\t"s)
+    {
+        ASSERT_EQ(GRE::full_match("\\s", string(1, chr)).value(), string(1, chr));
+    }
+}
+
 TEST(PreDef, Digit)
 {
     for (char n = '0'; n <= '9'; ++n)
     {
-        ASSERT_EQ(GRE::full_match("\\d", std::string(1, n)).value(), std::string(1, n));
+        ASSERT_EQ(GRE::full_match("\\d", string(1, n)).value(), string(1, n));
     }
 }
 
@@ -29,12 +37,12 @@ TEST(PreDef, Word)
 
     for (char chr = 'a'; chr <= 'z'; ++chr)
     {
-        ASSERT_EQ(GRE::full_match("\\w", std::string(1, chr)).value(), std::string(1, chr));
+        ASSERT_EQ(GRE::full_match("\\w", string(1, chr)).value(), string(1, chr));
     }
 
     for (char chr = 'A'; chr <= 'Z'; ++chr)
     {
-        ASSERT_EQ(GRE::full_match("\\w", std::string(1, chr)).value(), std::string(1, chr));
+        ASSERT_EQ(GRE::full_match("\\w", string(1, chr)).value(), string(1, chr));
     }
 }
 

@@ -21,6 +21,8 @@ TEST(PreDef, Space)
     {
         ASSERT_EQ(GRE::full_match("\\s", string(1, chr)).value(), string(1, chr));
     }
+
+    // TEST failures
 }
 
 TEST(PreDef, Digit)

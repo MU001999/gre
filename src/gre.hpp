@@ -1391,7 +1391,15 @@ class GRE
                         }
                         else
                         {
-                            const auto input = text[pos];
+                            /**
+                             * NOTE: use uint8_t instead of auto
+                             *  for avoiding the transformation from char to std::size_t
+                             *  when the input is negative
+                             *
+                             * for example, (char)0x80 will be transformed to (size_t)0xFFFFFFFFFFFFFF80
+                             *  with the assumption that size_t is 64-bits
+                            */
+                            const uint8_t input = text[pos];
                             if (node->accept[input])
                             {
                                 ++pos;

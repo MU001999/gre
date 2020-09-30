@@ -1,4 +1,5 @@
 #include "../src/gre.hpp"
+#include <set>
 #include <string>
 #include <gtest/gtest.h>
 
@@ -17,12 +18,21 @@ TEST(SingleChar, Blank)
 
 TEST(PreDef, Space)
 {
-    for (char chr : " \r\f\v\n\t"s)
+    set<char> spaces{' ', '\r', '\f', '\v', '\n', '\t'};
+    for (char chr : spaces)
     {
         ASSERT_EQ(GRE::full_match("\\s", string(1, chr)).value(), string(1, chr));
     }
 
-    // TEST failures
+    // 0x80 = -128
+    char chr = 0x80;
+    for (int i = 0; i <= 0xFF; ++i, ++chr)
+    {
+        if (!spaces.count(chr))
+        {
+            ASSERT_EQ(GRE::full_match("\\s", string(1, chr)).has_value(), false);
+        }
+    }
 }
 
 TEST(PreDef, Digit)

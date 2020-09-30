@@ -41,6 +41,15 @@ TEST(PreDef, Digit)
     {
         ASSERT_EQ(GRE::full_match("\\d", string(1, n)).value(), string(1, n));
     }
+
+    char chr = 0x80;
+    for (int i = 0; i <= 0xFF; ++i, ++chr)
+    {
+        if (!isdigit(chr))
+        {
+            ASSERT_EQ(GRE::full_match("\\d", string(1, chr)).has_value(), false);
+        }
+    }
 }
 
 TEST(PreDef, LowerWord)
@@ -49,6 +58,15 @@ TEST(PreDef, LowerWord)
     {
         ASSERT_EQ(GRE::full_match("\\l", string(1, chr)).value(), string(1, chr));
     }
+
+    char chr = 0x80;
+    for (int i = 0; i <= 0xFF; ++i, ++chr)
+    {
+        if (!islower(chr))
+        {
+            ASSERT_EQ(GRE::full_match("\\l", string(1, chr)).has_value(), false);
+        }
+    }
 }
 
 TEST(PreDef, UpperWord)
@@ -56,6 +74,15 @@ TEST(PreDef, UpperWord)
     for (char chr = 'A'; chr <= 'Z'; ++chr)
     {
         ASSERT_EQ(GRE::full_match("\\u", string(1, chr)).value(), string(1, chr));
+    }
+
+    char chr = 0x80;
+    for (int i = 0; i <= 0xFF; ++i, ++chr)
+    {
+        if (!isupper(chr))
+        {
+            ASSERT_EQ(GRE::full_match("\\u", string(1, chr)).has_value(), false);
+        }
     }
 }
 
@@ -71,6 +98,20 @@ TEST(PreDef, Word)
     for (char chr = 'A'; chr <= 'Z'; ++chr)
     {
         ASSERT_EQ(GRE::full_match("\\w", string(1, chr)).value(), string(1, chr));
+    }
+
+    for (char n = '0'; n <= '9'; ++n)
+    {
+        ASSERT_EQ(GRE::full_match("\\w", string(1, n)).value(), string(1, n));
+    }
+
+    char chr = 0x80;
+    for (int i = 0; i <= 0xFF; ++i, ++chr)
+    {
+        if (!isalpha(chr) && !isdigit(chr) && chr != '_')
+        {
+            ASSERT_EQ(GRE::full_match("\\w", string(1, chr)).has_value(), false);
+        }
     }
 }
 

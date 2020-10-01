@@ -134,6 +134,36 @@ TEST(Select, Single)
     ASSERT_EQ(re.match("d").has_value(), false);
 }
 
+TEST(Qualifier, NTimes)
+{
+    ASSERT_EQ(GRE::full_match("a{5}", "aaaaa").value(), "aaaaa"s);
+}
+
+TEST(Qualifier, AtLeastNTimes)
+{
+    ASSERT_EQ(GRE::full_match("a{5,}", "aaaaaa").value(), "aaaaaa"s);
+}
+
+TEST(Qualifier, Complete)
+{
+    auto re = GRE("a{1,5}");
+    ASSERT_EQ(GRE::full_match(re, "a").value(), "a"s);
+    ASSERT_EQ(GRE::full_match(re, "aa").value(), "aa"s);
+    ASSERT_EQ(GRE::full_match(re, "aaa").value(), "aaa"s);
+    ASSERT_EQ(GRE::full_match(re, "aaaa").value(), "aaaa"s);
+    ASSERT_EQ(GRE::full_match(re, "aaaaa").value(), "aaaaa"s);
+    ASSERT_EQ(GRE::full_match(re, "aaaaaa").value(), "aaaaa"s);
+}
+
+TEST(Range, Normal)
+{
+    auto re = GRE("[abc]");
+    ASSERT_EQ(re.match("abc").value(), "a"s);
+    ASSERT_EQ(re.match("bca").value(), "b"s);
+    ASSERT_EQ(re.match("cab").value(), "c"s);
+    ASSERT_EQ(re.match("d").has_value(), false);
+}
+
 TEST(Capture, Multi)
 {
     auto re = GRE("(a)*");
@@ -200,36 +230,6 @@ TEST(Capture, NameRef)
     {
         ASSERT_EQ(sub, "a"s);
     }
-}
-
-TEST(Qualifier, NTimes)
-{
-    ASSERT_EQ(GRE::full_match("a{5}", "aaaaa").value(), "aaaaa"s);
-}
-
-TEST(Qualifier, AtLeastNTimes)
-{
-    ASSERT_EQ(GRE::full_match("a{5,}", "aaaaaa").value(), "aaaaaa"s);
-}
-
-TEST(Qualifier, Complete)
-{
-    auto re = GRE("a{1,5}");
-    ASSERT_EQ(GRE::full_match(re, "a").value(), "a"s);
-    ASSERT_EQ(GRE::full_match(re, "aa").value(), "aa"s);
-    ASSERT_EQ(GRE::full_match(re, "aaa").value(), "aaa"s);
-    ASSERT_EQ(GRE::full_match(re, "aaaa").value(), "aaaa"s);
-    ASSERT_EQ(GRE::full_match(re, "aaaaa").value(), "aaaaa"s);
-    ASSERT_EQ(GRE::full_match(re, "aaaaaa").value(), "aaaaa"s);
-}
-
-TEST(Range, Normal)
-{
-    auto re = GRE("[abc]");
-    ASSERT_EQ(re.match("abc").value(), "a"s);
-    ASSERT_EQ(re.match("bca").value(), "b"s);
-    ASSERT_EQ(re.match("cab").value(), "c"s);
-    ASSERT_EQ(re.match("d").has_value(), false);
 }
 
 TEST(Failure, Main)

@@ -212,6 +212,15 @@ TEST(Qualifier, AtLeastNTimes)
     ASSERT_EQ(GRE::full_match("a{5,}", "aaaaaa").value(), "aaaaaa"s);
 }
 
+TEST(Range, Normal)
+{
+    auto re = GRE("[abc]");
+    ASSERT_EQ(re.match("abc").value(), "a"s);
+    ASSERT_EQ(re.match("bca").value(), "b"s);
+    ASSERT_EQ(re.match("cab").value(), "c"s);
+    ASSERT_EQ(re.match("d").has_value(), false);
+}
+
 TEST(Failure, Main)
 {
     ASSERT_EQ(GRE::full_match("abc", "b").has_value(), false);

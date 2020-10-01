@@ -212,6 +212,17 @@ TEST(Qualifier, AtLeastNTimes)
     ASSERT_EQ(GRE::full_match("a{5,}", "aaaaaa").value(), "aaaaaa"s);
 }
 
+TEST(Qualifier, Complete)
+{
+    auto re = GRE("a{1,5}");
+    ASSERT_EQ(GRE::full_match(re, "a").value(), "a"s);
+    ASSERT_EQ(GRE::full_match(re, "aa").value(), "aa"s);
+    ASSERT_EQ(GRE::full_match(re, "aaa").value(), "aaa"s);
+    ASSERT_EQ(GRE::full_match(re, "aaaa").value(), "aaaa"s);
+    ASSERT_EQ(GRE::full_match(re, "aaaaa").value(), "aaaaa"s);
+    ASSERT_EQ(GRE::full_match(re, "aaaaaa").value(), "aaaaa"s);
+}
+
 TEST(Range, Normal)
 {
     auto re = GRE("[abc]");
